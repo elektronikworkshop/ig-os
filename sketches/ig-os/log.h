@@ -10,23 +10,39 @@ public:
     , m_previousLogTime(0)
   { }
   virtual void begin() = 0;
-  virtual bool log() = 0;
+  virtual bool log(float humidity, unsigned long pumpSeconds) = 0;
   void run()
   {
     if (millis() - m_previousLogTime > (unsigned long)m_intervalMinutes * 60UL * 1000UL) {
   
-      // todo: perform extra measurements here
-      //        (check if sensor active and postpone logging by not writing m_previousLogTime)
+      /* if sensor is active we postpone logging until we are able to
+       * get fresh data. The trigger condition will remain true.
+       */
+      Sensor& sensor = m_circuit.getSensor();
+      if (sensor.getState() != Sensor::StateIdle) {
+        return;
+      }
 
-      // todo: check if data from circuit is valid
-
-      log();
+      sensor.enable();
+      while (sensor.getState() != Sensor::StateReady) {
+        delay(500);
+        sensor.run();
+      }
+      float humidity = sensor.read();
+      sensor.disable();
+  
+      log(humidity,
+          m_circuit.getPump().getTotalEnabledTimeMs()/1000);
       
       m_previousLogTime = millis();
     }
   }
-protected:
-  WaterCircuit& getCircuit() { return m_circuit; }
+  void trigger()
+  {
+    m_previousLogTime = millis() - m_intervalMinutes * 1000UL;
+  }
+//protected:
+//  WaterCircuit& getCircuit() { return m_circuit; }
 private:
   WaterCircuit& m_circuit;
   unsigned int m_intervalMinutes;
@@ -51,10 +67,10 @@ public:
   {
     ThingSpeak.begin(m_client);
   }
-  virtual bool log()
+  virtual bool log(float humidity, unsigned long pumpSeconds)
   {
-    ThingSpeak.setField((unsigned int)1, getCircuit().getHumidity());
-    ThingSpeak.setField((unsigned int)2, static_cast<long>(getCircuit().getPump().getTotalEnabledTimeMs()/1000));
+    ThingSpeak.setField((unsigned int)1, humidity);
+    ThingSpeak.setField((unsigned int)2, static_cast<long>(pumpSeconds));
     ThingSpeak.writeFields(m_channelId, m_writeApiKey);
 
     Serial << "logged data at " << timeClient.getFormattedTime() << "\n";

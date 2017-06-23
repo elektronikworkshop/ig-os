@@ -151,11 +151,12 @@ void cmdTrigger()
 
 void cmdCircuitRead()
 {
+/*
   if (systemMode.getMode() != SystemMode::Manual) {
     Serial << "you need to be in manual mode to do this\n";
     return;
   }
-  
+*/
   int id;
   WaterCircuit* w;
   if (not cmdParseId(id, w)) {
@@ -164,6 +165,12 @@ void cmdCircuitRead()
   }
   
   Sensor& s = w->getSensor();
+  
+  if (s.getState() != Sensor::StateIdle) {
+    Serial << "sensor is currently active, try again later\n";
+    return;
+  }
+  
   s.enable();
   while (s.getState() != Sensor::StateReady) {
     delay(500);
@@ -302,7 +309,7 @@ void cmdCircuitLog()
     Serial << "invalid index\n";
     return;
   }
-  thingSpeakLogger.log();
+  thingSpeakLogger.trigger();
 }
 
 

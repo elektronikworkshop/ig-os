@@ -103,7 +103,15 @@ private:
 };
 
 
-// TODO: remember when run previously
+/* TODO: remember when run previously
+ * 
+ * TODO: rename StateTriggered to StateSensorWait
+ * and add new state StatePumpWait - this way we can interleave
+ * sensing, watering and soaking of all circuits and do not have
+ * to run them sequentially
+ * 
+ * 
+ */
 
 class WaterCircuit
 {
@@ -132,6 +140,8 @@ public:
   typedef enum
   {
     StateIdle = 0,
+    /** Circuit is triggered but is waiting until busy hardware gets ready, e.g. sensors */
+    StateTriggered,
     StateSense,
     StateWater,
     StateSoak
@@ -148,22 +158,26 @@ public:
     m_pump.begin();
   }
 
-  // TODO: detect when sensor is currently active and store trigger for later
-  // execution when sensor becomes idle again
   void trigger()
   {
     if (m_state != StateIdle) {
       return;
     }
-    m_state = StateSense;
+    m_state = StateTriggered;
     m_firstIteration = true;
-    Serial.println("Water state: Sensing");
+    Serial.println("Water state: Triggered");
   }
   void run()
   {
     switch (m_state) {
       case StateIdle:
-        return;
+        break;
+      case StateTriggered:
+        if (m_sensor.getState() == Sensor::StateIdle) {
+          m_state = StateSense;
+          Serial.println("Water state: Sensing");
+        }
+        break;
       case StateSense:
         m_sensor.run();
         switch (m_sensor.getState()) {
@@ -206,9 +220,10 @@ public:
         break;
       case StateSoak:
         if (millis() - m_soakStartMillis > m_soakMillis) {
-          m_state = StateSense;
+          /* We must return to triggered state to avoid sensor collisions */
+          m_state = StateTriggered;
           m_firstIteration = false;
-          Serial.println("Water state: Sensing");
+          Serial.println("Water state: Triggered");
         }
         break;
     }
@@ -220,9 +235,11 @@ public:
   void reset()
   {
     if (m_state != StateIdle) {
-      m_sensor.disable();
-      m_pump.disable();
-      m_valve.close();
+      if (m_state != StateTriggered) {
+        m_sensor.disable();
+        m_pump.disable();
+        m_valve.close();
+      }
       m_state = StateIdle;
       Serial.println("Water state: Idle by reset");
     }
