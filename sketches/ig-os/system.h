@@ -280,5 +280,73 @@ bool wateringDue()
   return due;
 }
 
+class ProtoReservoir
+  : public Reservoir
+{
+public:
+//  const int PinVddSensor = D7;
+  
+  ProtoReservoir(const unsigned int millisPrepare = 2000)
+    : m_millisPrepare(millisPrepare)
+  {}
+  virtual void begin()
+  {
+//    pinMode(PinVddSensor, OUTPUT);
+//    digitalWrite(PinVddSensor, LOW);
+  }
+  virtual ~ProtoReservoir()
+  {
+//    digitalWrite(PinVddSensor, LOW);
+  }
+  virtual void enable()
+  {
+    switch (getState()) {
+      case StateIdle:
+//        digitalWrite(PinVddSensor, HIGH);
+        m_millisEnabled = millis();
+        setState(StatePrepare);
+        break;
+    }
+  }
+  virtual void disable()
+  {
+    switch (getState()) {
+      case StatePrepare:
+      case StateReady:
+//        digitalWrite(PinVddSensor, LOW);
+        setState(StateIdle);
+        break;
+    }
+  }
+  virtual float read()
+  {
+    unsigned int v;
+//  v = analogRead(A0);
+        
+    Serial.print("ProtoReservoir::read ");
+    Serial.println(v);
+
+    /* Clip and invert */
+    v = v > 1023 ? 1023 : v;
+    v = 1024 - v;
+
+    /* Convert to 0 .. 1 scale */
+    return (float)v * 0.00097751710654936461;
+  }
+  virtual void run()
+  {
+    switch (getState()) {
+      case StatePrepare:
+        if (millis() - m_millisEnabled > m_millisPrepare) {
+          setState(StateReady);
+        }
+      break;
+    }
+  }
+private:
+  unsigned long m_millisEnabled;
+  unsigned int m_millisPrepare;
+};
+
 #endif /* #ifndef EW_IG_SYSTEM */
 

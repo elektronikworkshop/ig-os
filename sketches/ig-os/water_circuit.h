@@ -296,5 +296,15 @@ private:
   /* TODO: statistics */
 };
 
+/** Reservoir base class.
+ *  
+ */
+class Reservoir
+  : public Sensor
+{
+public:
+private:
+};
+
 #endif  /* #ifndef EW_WATER_CIRCUIT */
 

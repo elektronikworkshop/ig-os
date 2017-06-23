@@ -74,9 +74,10 @@ void cmdHelp()
     << "  display current time\n"
     << "mode <off, auto, man>\n"
     << "  switch the intelligüss mode\n"
-    << "trig\n"
-    << "  manually trigger watering cycle\n"
     << "WATERING CIRCUITS:\n"
+    << "c.trig [id]\n"
+    << "  manually trigger watering cycle. if [id] is provided only\n"
+    << "  circuit with [id] is triggered\n"
     << "c.read <id>\n"
     << "  read sensor of circuit with ID <id>\n"
     << "c.pump <id> <seconds>\n"
@@ -104,6 +105,9 @@ void cmdHelp()
     << "  configure scheduler whereas\n"
     << "    <index> is the entry number between " << 1 << " and " << NumPollTimes << "\n"
     << "    <time> is the time formatted \"hh:mm\" or \"off\"\n"
+    << "RESERVOIR\n"
+    << "r.read\n"
+    << "  read reservoir level\n"
     << "----------------\n"
     ;
 }
@@ -141,10 +145,16 @@ void cmdMode()
   }
 }
 
+/* TODO: we can combine both.
+ * NumWaterCircuits triggers all, below single circuits are triggered
+ */
 bool cliTrigger = false;
+int cliTriggerId = -1;
 
-void cmdTrigger()
+void cmdCircuitTrigger()
 {
+  /* todo */
+    
   cliTrigger = true;
   Serial << "watering triggered manually\n";  
 }
@@ -390,6 +400,11 @@ void cmdSchedulerSet()
   *pollTimes[index - 1] = PollTime(h, m);
 }
 
+void cmdReservoirRead()
+{
+  Serial << "not implemented yet\n";
+}
+
 void cmdInvalid(const char *command)
 {
   Serial
@@ -405,15 +420,17 @@ void cliInit()
   sCmd.addCommand("rssi",   cmdRssi);
   sCmd.addCommand("time",   cmdTime);
   sCmd.addCommand("mode",   cmdMode);
-  sCmd.addCommand("trig",   cmdTrigger);
+  sCmd.addCommand("c.trig", cmdCircuitTrigger);
   sCmd.addCommand("c.read", cmdCircuitRead);
   sCmd.addCommand("c.pump", cmdCircuitPump);
   sCmd.addCommand("c.info", cmdCircuitInfo);
   sCmd.addCommand("c.set",  cmdCircuitSet);
   sCmd.addCommand("c.log",  cmdCircuitLog);
 
-  sCmd.addCommand("s.info",  cmdSchedulerInfo);
+  sCmd.addCommand("s.info", cmdSchedulerInfo);
   sCmd.addCommand("s.set",  cmdSchedulerSet);
+
+  sCmd.addCommand("r.read", cmdReservoirRead);
 
   sCmd.setDefaultHandler(cmdInvalid);
 }
