@@ -1,15 +1,20 @@
-
+/*
+ * https://github.com/me-no-dev/ESPAsyncWebServer
+ * https://developers.google.com/chart/
+ * https://diyprojects.io/esp8266-web-server-part-5-add-google-charts-gauges-and-charts/#Add_Google_Charts_to_a_Web_Interface_ESP8266
+ * https://github.com/esp8266/Arduino/tree/master/libraries/ESP8266mDNS
+ * 
+ */
 
 #include "water_circuit.h"
 #include "cli.h"
+#include "adc.h"
+#include "flash.h"
+
+FlashMemory flashMemory;
 
 const char* WiFiSSID = "TokyoElectricPowerCompany";
 const char* WiFiPSK  = "g3tR1d0ff1t";
-
-/*
-const int RESERVOIR_POWER_PIN = D1;
-const int RESERVOIR_SENSE_PIN = D2;
-*/
 
 void setup()
 {
@@ -24,14 +29,10 @@ void setup()
 
   circuit.begin();
   thingSpeakLogger.begin();
+  spi.begin();
+  adc.begin();
 
   pinMode(LED_BUILTIN, OUTPUT);
-
-/*
-  pinMode(RESERVOIR_POWER_PIN, OUTPUT);
-  digitalWrite(RESERVOIR_POWER_PIN, LOW);
-  pinMode(RESERVOIR_SENSE_PIN, INPUT);
-  */
 }
 
 
@@ -71,17 +72,7 @@ void loop()
     static unsigned int led = LOW;
     led = led == HIGH ? LOW : HIGH;
     digitalWrite(LED_BUILTIN, led);
-  }
-
-/*
-  digitalWrite(RESERVOIR_POWER_PIN, HIGH);
-  delay(500);
-  int r = digitalRead(RESERVOIR_SENSE_PIN);
-  Serial << "reservoir: " << r << "\n";
-  Serial << "reservoir: " << r << "\n";
-  digitalWrite(RESERVOIR_POWER_PIN, LOW);
-  */
-  
+  }  
 }
 
 void connectWiFi(const char* ssid, const char* pass)
@@ -98,7 +89,6 @@ void connectWiFi(const char* ssid, const char* pass)
     const int MillisecondsToTry = 5000;
     const int IntervalMs = 200;
 
-    
     for (int i = 0; i < MillisecondsToTry/IntervalMs; i++) {
     
       if (WiFi.status() == WL_CONNECTED) {
@@ -115,43 +105,8 @@ void connectWiFi(const char* ssid, const char* pass)
       Serial << ".";
     }
     Serial
-      << "failed to connect to " << ssid << "\n";
+      << "failed to connect to " << ssid << " after " << MillisecondsToTry/1000 << "seconds\n";
     WiFi.disconnect();
-
-#if 0
-
-    {
-      SerialCommand sc;
-      bool entered = false;
-
-      auto f = [&](const char* _ssid) {
-        ssid = _ssid;
-        entered = true;
-      };
-      
-      void (decltype(f)::*ptr)(const char*)const = &decltype(f)::operator();
-      
-      sc.setDefaultHandler(std::bind(ptr, f));
-      while (not entered) {
-        sc.readSerial();
-        delay(200);
-      }
-    }
-    /*
-    {    
-      SerialCommand sc;
-      bool entered = false;
-      sc.setDefaultHandler([&](const char* _pass){
-        pass = _pass;
-        entered = true;
-      });
-      while (not entered) {
-        sc.readSerial();
-        delay(200);
-      }
-    }
-    */
-#endif
   }
 }
 

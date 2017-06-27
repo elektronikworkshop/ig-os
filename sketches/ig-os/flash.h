@@ -4,17 +4,22 @@
  *  consider for later incorporation:
  *  https://github.com/CuriousTech/ESP8266-HVAC/blob/master/Arduino/WiFiManager.h
  */
-#ifndef EEMEM_H
-#define EEMEM_H
+#ifndef EW_IG_FLASH_H
+#define EW_IG_FLASH_H
 
 #include <Arduino.h>
 
-struct eeSet // EEPROM backed data
+struct FlashDataSet // FLASH backed data
 {
   uint16_t size;          // if size changes, use defaults
   uint16_t sum;           // if sum is different from memory struct, write
-  char     szSSID[32];
+  char     szSSID[64];
   char     szSSIDPassword[64];
+
+  uint8_t  reserved[380];  /* keep the struct at total 512 bytes */
+
+  
+#if 0
   uint16_t coolTemp[2]; // cool to temp *10 low/high
   uint16_t heatTemp[2]; // heat to temp *10 low/high
   int16_t  cycleThresh[2]; // temp range for cycle *10
@@ -45,20 +50,21 @@ struct eeSet // EEPROM backed data
   uint16_t ccf;
   uint8_t  fcRange; // number in forecasts (3 hours)
   uint8_t  fcDisplay; // number in forecasts (3 hours)
-  char     reserved[26];
+#endif
 };
 
-extern eeSet ee;
+extern FlashDataSet flashDataSet;
 
-class eeMem
+class FlashMemory
 {
 public:
-  eeMem();
+  FlashMemory();
   void update(void);
 private:
-  uint16_t Fletcher16( uint8_t* data, int count);
+  static uint16_t fletcher16( uint8_t* data, int count);
 };
 
-extern eeMem eemem;
+extern FlashMemory flashMemory;
 
-#endif  /* #define EEMEM_H */
+#endif  /* #define EW_IG_FLASH_H */
+

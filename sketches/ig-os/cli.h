@@ -405,6 +405,21 @@ void cmdReservoirRead()
   Serial << "not implemented yet\n";
 }
 
+void cmdNetworkSsid()
+{
+  Serial << "not implemented yet\n";
+}
+
+void cmdNetworkPass()
+{
+  Serial << "not implemented yet\n";
+}
+
+void cmdNetworkConnect()
+{
+  Serial << "not implemented yet\n";
+}
+
 void cmdInvalid(const char *command)
 {
   Serial
@@ -431,6 +446,10 @@ void cliInit()
   sCmd.addCommand("s.set",  cmdSchedulerSet);
 
   sCmd.addCommand("r.read", cmdReservoirRead);
+
+  sCmd.addCommand("n.ssid", cmdNetworkSsid);
+  sCmd.addCommand("n.pass", cmdNetworkPass);
+  sCmd.addCommand("n.connect", cmdNetworkPass);
 
   sCmd.setDefaultHandler(cmdInvalid);
 }

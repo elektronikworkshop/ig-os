@@ -1,9 +1,13 @@
 #include "flash.h"
 #include <EEPROM.h>
 
-eeSet ee = { sizeof(eeSet), 0xAAAA,
+FlashDataSet flashDataSet = { sizeof(FlashDataSet), 0xAAAA,
   "",  // saved SSID (place your SSID and password here)
   "", // router password
+
+  {0}
+
+#if 0
   {820, 850},   // 79.0, 82.0 default cool temps
   {730, 750},   // default heat temps
   {30, 17},     // cycleThresh (cool 3.0, heat 1.7)
@@ -34,52 +38,54 @@ eeSet ee = { sizeof(eeSet), 0xAAAA,
     700,        // nat gas cost per cubic foot in cents / 100 (0.70)
   46,           // forecast range for in mapping to out mix/max (5, but 3 can be better)
   46,           // forecast range for display (5 of 7 day max)
-  {0}
+#endif
 };
 
-eeMem::eeMem()
+FlashMemory::FlashMemory()
 {
   EEPROM.begin(512);
 
-  uint8_t data[sizeof(eeSet)];
+  uint8_t data[sizeof(FlashDataSet)];
   uint16_t *pwTemp = (uint16_t *)data;
 
   int addr = 0;
-  for(int i = 0; i < sizeof(eeSet); i++, addr++) {
+  for(int i = 0; i < sizeof(FlashDataSet); i++, addr++) {
     data[i] = EEPROM.read( addr );
   }
 
-  if(pwTemp[0] != sizeof(eeSet)) {
+  if(pwTemp[0] != sizeof(FlashDataSet)) {
     return; // revert to defaults if struct size changes
   }
   uint16_t sum = pwTemp[1];
   pwTemp[1] = 0;
-  pwTemp[1] = Fletcher16(data, sizeof(eeSet) );
+  pwTemp[1] = fletcher16(data, sizeof(FlashDataSet) );
   if(pwTemp[1] != sum) {
     return; // revert to defaults if sum fails
   }
-  memcpy(&ee, data, sizeof(eeSet) );
+  memcpy(&flashDataSet, data, sizeof(FlashDataSet) );
 }
 
-void eeMem::update() // write the settings if changed
+void FlashMemory::update() // write the settings if changed
 {
-  uint16_t old_sum = ee.sum;
-  ee.sum = 0;
-  ee.sum = Fletcher16((uint8_t*)&ee, sizeof(eeSet));
+  uint16_t old_sum = flashDataSet.sum;
+  flashDataSet.sum = 0;
+  flashDataSet.sum = fletcher16((uint8_t*)&flashDataSet, sizeof(FlashDataSet));
 
-  if(old_sum == ee.sum)
-    return; // Nothing has changed?
+  if(old_sum == flashDataSet.sum) {
+    /* Nothing has changed -- exit */
+    return;
+  }
 
   uint16_t addr = 0;
-  uint8_t *pData = (uint8_t *)&ee;
-  for(int i = 0; i < sizeof(eeSet); i++, addr++)
+  uint8_t *pData = (uint8_t *)&flashDataSet;
+  for(int i = 0; i < sizeof(FlashDataSet); i++, addr++)
   {
     EEPROM.write(addr, pData[i] );
   }
   EEPROM.commit();
 }
 
-uint16_t eeMem::Fletcher16( uint8_t* data, int count)
+uint16_t FlashMemory::fletcher16( uint8_t* data, int count)
 {
    uint16_t sum1 = 0;
    uint16_t sum2 = 0;

@@ -1,6 +1,8 @@
 
 #include "system.h"
 
+/* TODO: we should trigger on absolute time to achieve a more regular logging interval */
+
 class Logger
 {
 public:

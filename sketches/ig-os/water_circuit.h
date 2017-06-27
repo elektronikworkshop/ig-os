@@ -49,7 +49,7 @@ private:
 };
 
 /** Humidity sensor base class, all sensor types should derive from it.
- *  
+ *
  */
 class Sensor
 {
@@ -66,7 +66,7 @@ public:
   {
   }
   virtual void begin() = 0;
-  
+
   State getState() const
   {
     return m_state;
@@ -91,7 +91,7 @@ private:
 };
 
 /** Water valve base class, all valve types should derive from it.
- *  
+ *
  */
 class Valve
 {
@@ -104,13 +104,13 @@ private:
 
 
 /* TODO: remember when run previously
- * 
+ *
  * TODO: rename StateTriggered to StateSensorWait
  * and add new state StatePumpWait - this way we can interleave
  * sensing, watering and soaking of all circuits and do not have
  * to run them sequentially
- * 
- * 
+ *
+ *
  */
 
 class WaterCircuit
@@ -132,7 +132,7 @@ public:
     , m_threshDry(threshDry)
     , m_threshWet(threshWet)
     , m_soakMillis(soakMillis)
-    
+
     , m_state(StateIdle)
     , m_firstIteration(true)
     , m_currentHumidity(0)
@@ -191,7 +191,7 @@ public:
             m_sensor.disable();
             Serial.print("Humidity: ");
             Serial.println(m_currentHumidity);
-            /* The first time we check if the soil is dry. 
+            /* The first time we check if the soil is dry.
              * After watering we check if it's wet -- so we
              * have a little hysteresis here.
              */
@@ -270,7 +270,7 @@ public:
   {
     return m_pump;
   }
-  
+
 private:
   /** Watering circuit ID */
   unsigned int m_id;
@@ -297,7 +297,7 @@ private:
 };
 
 /** Reservoir base class.
- *  
+ *
  */
 class Reservoir
   : public Sensor
@@ -307,4 +307,3 @@ private:
 };
 
 #endif  /* #ifndef EW_WATER_CIRCUIT */
-
