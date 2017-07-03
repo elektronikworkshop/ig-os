@@ -103,7 +103,7 @@ void cmdHelp()
     << "  print scheduler configuration\n"
     << "s.set <index> <time>\n"
     << "  configure scheduler whereas\n"
-    << "    <index> is the entry number between " << 1 << " and " << NumPollTimes << "\n"
+    << "    <index> is the entry number between " << 1 << " and " << NumSchedulerTimes << "\n"
     << "    <time> is the time formatted \"hh:mm\" or \"off\"\n"
     << "RESERVOIR\n"
     << "r.read\n"
@@ -226,10 +226,10 @@ void prtCircuitInfo(WaterCircuit* w, int id)
 {
   Serial
     <<  "info circuit " << id << ":\n"
-    <<  "  pump time  " << w->getPumpMillis() / 1000 << " s\n"
+    <<  "  pump time  " << w->getPumpSeconds() / 1000 << " s\n"
     <<  "  dry thresh " << w->getThreshDry() << "\n"
     <<  "  wet thresh " << w->getThreshWet() << "\n"
-    <<  "  soak time  " << w->getSoakMillis() / 1000 << " s\n"
+    <<  "  soak time  " << w->getSoakMinutes() / 1000 << " s\n"
     <<  "  last read humidity  " << int(w->getHumidity() * 100) << " %\n"
     ;
 }
@@ -270,36 +270,36 @@ void cmdCircuitSet()
   }
 
   if (strcmp(arg, "pump") == 0) {
-    float s;
-    if (not cmdParseFloat(s, 0, 60 * 10)) {
-      Serial << "pump seconds must be between 0.0 and 600.0\n";
+    int s;
+    if (not cmdParseInt(s, 0, 255)) {
+      Serial << "pump seconds must be between 0 and 255\n";
       return;
     }
-    w->setPumpMillis(s * 1000);
+    w->setPumpSeconds(s);
     Serial << "pump time set to " << s << " seconds\n";
     return;
   } else if (strcmp(arg, "soak") == 0) {
-    float s;
-    if (not cmdParseFloat(s, 0, 60 * 10)) {
-      Serial << "soak seconds must be between 0.0 and 600.0\n";
+    int m;
+    if (not cmdParseInt(m, 0, 255)) {
+      Serial << "soak minutes must be between 0 and 255\n";
       return;
     }
-    w->setSoakMillis(s * 1000);
-    Serial << "soak time set to " << s << " seconds\n";
+    w->setSoakMinutes(m);
+    Serial << "soak time set to " << m << " minutes\n";
     return;
   } else if (strcmp(arg, "dry") == 0) {
-    float t;
-    if (not cmdParseFloat(t, 0, 1.0)) {
-      Serial << "dry threshold must be between 0.0 and 1.0\n";
+    int t;
+    if (not cmdParseInt(t, 0, 255)) {
+      Serial << "dry threshold must be between 0 and 255\n";
       return;
     }
     w->setThreshDry(t);
     Serial << "dry threshold set to " << t << "\n";
     return;
   } else if (strcmp(arg, "wet") == 0) {
-    float t;
-    if (not cmdParseFloat(t, 0, 1.0)) {
-      Serial << "wet threshold must be between 0.0 and 1.0\n";
+    int t;
+    if (not cmdParseInt(t, 0, 255)) {
+      Serial << "wet threshold must be between 0 and 255\n";
       return;
     }
     w->setThreshWet(t);
@@ -319,7 +319,7 @@ void cmdCircuitLog()
     Serial << "invalid index\n";
     return;
   }
-  thingSpeakLogger.trigger();
+//  thingSpeakLogger.trigger();
 }
 
 
@@ -328,7 +328,7 @@ void cmdSchedulerInfo()
   Serial << "scheduler entries:\n";
   
   int i = 1;  
-  for (PollTime **t = pollTimes; *t; t++, i++) {
+  for (SchedulerTime **t = schedulerTimes; *t; t++, i++) {
     Serial << "  Entry [" << i << "]: ";
     if ((*t)->isValid()) {
       prtTwoDigit((*t)->getHour());
@@ -344,8 +344,8 @@ void cmdSchedulerInfo()
 void cmdSchedulerSet()
 {
   int index;
-  if (not cmdParseInt(index, 1, NumPollTimes)) {
-    Serial << "index must be in the range 1 .. " << NumPollTimes << "\n";
+  if (not cmdParseInt(index, 1, NumSchedulerTimes)) {
+    Serial << "index must be in the range 1 .. " << NumSchedulerTimes << "\n";
     return;
   }
   
@@ -365,7 +365,7 @@ void cmdSchedulerSet()
 
   if (strcmp(arg, "off") == 0) {
     Serial << "configuring scheduler entry [" << index << "] to \"off\"\n";
-    *pollTimes[index - 1] = PollTime();
+    *schedulerTimes[index - 1] = SchedulerTime();
     return;
   }
 
@@ -397,7 +397,7 @@ void cmdSchedulerSet()
   prtTwoDigit(m);
   Serial << "\n";
   
-  *pollTimes[index - 1] = PollTime(h, m);
+  *schedulerTimes[index - 1] = SchedulerTime(h, m);
 }
 
 void cmdReservoirRead()

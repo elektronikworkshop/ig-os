@@ -5,6 +5,15 @@ FlashDataSet flashDataSet = { sizeof(FlashDataSet), 0xAAAA,
   "",  // saved SSID (place your SSID and password here)
   "", // router password
 
+  {{ 30,  /* pump */
+    150, /*  dry 0.6 * 255 -- better 0.7 * 255! */
+    200, /*  wet 0.8 * 255 */
+      5},
+   {0}, {0}, {0}
+  },// WaterCircuit::Settings waterCircuitSettings[NumWaterCircuits];
+
+  {{6, 0}, {8, 0}, {SchedulerTime::InvalidHour, 0}, {SchedulerTime::InvalidHour, 0}, {SchedulerTime::InvalidHour, 0}, {20, 0}, {22, 0}},
+  
   {0}
 
 #if 0
@@ -97,5 +106,20 @@ uint16_t FlashMemory::fletcher16( uint8_t* data, int count)
    }
 
    return (sum2 << 8) | sum1;
+}
+
+void FlashMemory::load()
+{
+  /* load watering cuircuit settings from flash */
+  for (int i = 0; i < NumWaterCircuits; i++) {
+      WaterCircuit* w = circuits[i];
+      w->setSettings(flashDataSet.waterCircuitSettings[i]);
+  }
+
+  /* load scheduler settings from flash */
+  for (int i = 0; i < NumSchedulerTimes; i++) {
+    SchedulerTime t(flashDataSet.schedulerTimes[i]);
+    *schedulerTimes[i] = t;
+  }
 }
 

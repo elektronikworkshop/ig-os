@@ -8,8 +8,9 @@ public:
   Pump()
     : m_enabled(false)
     , m_startMillis(0)
+    , m_totalEnabledMs(0)
   { }
-  virtual void begin() = 0;
+  virtual void begin() {};
   virtual void enable()
   {
     m_startMillis = millis();
@@ -19,33 +20,32 @@ public:
   {
     if (m_enabled) {
       m_enabled = false;
-      m_totalEnabledTime += millis() - m_startMillis;
+      m_totalEnabledMs += millis() - m_startMillis;
     }
   }
   bool isEnabled() const
   {
     return m_enabled;
   }
-  unsigned int millisEnabled() const
+  unsigned int secondsEnabled() const
   {
     if (not m_enabled) {
       return 0;
     }
-    return millis() - m_startMillis;
+    return (millis() - m_startMillis) / 1000;
   }
-  unsigned long long getTotalEnabledTimeMs(bool clear = false)
+  unsigned int getTotalEnabledSeconds(bool clear = false)
   {
-    unsigned long long ret = m_totalEnabledTime;
+    unsigned long long ret = m_totalEnabledMs;
     if (clear) {
-      m_totalEnabledTime = 0;
+      m_totalEnabledMs = 0;
     }
-    return ret;
+    return ret / 1000;
   }
 private:
   bool m_enabled;
   unsigned long m_startMillis;
-
-  unsigned long long m_totalEnabledTime;
+  unsigned long long m_totalEnabledMs;
 };
 
 /** Humidity sensor base class, all sensor types should derive from it.
@@ -73,7 +73,7 @@ public:
   }
   virtual void enable() = 0;
   virtual void disable() = 0;
-  virtual float read() = 0;
+  virtual uint8_t read() = 0;
   virtual void run() = 0;
 protected:
   void setState(State newState)
@@ -116,22 +116,29 @@ private:
 class WaterCircuit
 {
 public:
+  typedef struct
+  {
+    /** How long the pump should be active between measurements.
+     *  If m_pumpSeconds is zero (0), the watering circuit is disabled.
+     */
+    uint8_t m_pumpSeconds;
+    /** The sensor threshold when the soil is considered dry. Range 0 .. 255. */
+    uint8_t m_threshDry;
+    /** The sensor threshold when the soil is considered wet. Range 0 .. 255. */
+    uint8_t m_threshWet;
+    /** How long the pumped in water should soak before measuring the humidity again. */
+    uint8_t m_soakMinutes;
+  } Settings;
   WaterCircuit(const unsigned int& id,
                Sensor& sensor,
                Valve& valve,
                Pump& pump,
-               const unsigned int& pumpMillis,
-               const float& threshDry,
-               const float& threshWet,
-               const unsigned int& soakMillis)
+               const Settings& settings = {0})
     : m_id(id)
     , m_sensor(sensor)
     , m_valve(valve)
     , m_pump(pump)
-    , m_pumpMillis(pumpMillis)
-    , m_threshDry(threshDry)
-    , m_threshWet(threshWet)
-    , m_soakMillis(soakMillis)
+    , m_settings(settings)
 
     , m_state(StateIdle)
     , m_firstIteration(true)
@@ -195,8 +202,8 @@ public:
              * After watering we check if it's wet -- so we
              * have a little hysteresis here.
              */
-            if ((    m_firstIteration and m_currentHumidity <= m_threshDry) or
-                (not m_firstIteration and m_currentHumidity <= m_threshWet))
+            if ((    m_firstIteration and m_currentHumidity <= m_settings.m_threshDry) or
+                (not m_firstIteration and m_currentHumidity <= m_settings.m_threshWet))
             {
               m_valve.open();
               m_pump.enable();
@@ -210,7 +217,7 @@ public:
         }
         break;
       case StateWater:
-        if (m_pump.millisEnabled() >= m_pumpMillis) {
+        if (m_pump.secondsEnabled() >= m_settings.m_pumpSeconds) {
           m_pump.disable();
           m_valve.close();
           m_soakStartMillis = millis();
@@ -219,7 +226,7 @@ public:
         }
         break;
       case StateSoak:
-        if (millis() - m_soakStartMillis > m_soakMillis) {
+        if ((millis() - m_soakStartMillis) / (60 * 1000) > m_settings.m_soakMinutes) {
           /* We must return to triggered state to avoid sensor collisions */
           m_state = StateTriggered;
           m_firstIteration = false;
@@ -247,16 +254,19 @@ public:
 
   unsigned int getId() const {return m_id;}
 
-  unsigned int getPumpMillis() const { return m_pumpMillis; }
-  float getThreshDry() const { return m_threshDry; }
-  float getThreshWet() const { return m_threshWet; }
-  unsigned int getSoakMillis() const { return m_soakMillis; }
-  float getHumidity() const { return m_currentHumidity; }
+  uint8_t getPumpSeconds() const { return m_settings.m_pumpSeconds; }
+  uint8_t getThreshDry()   const { return m_settings.m_threshDry; }
+  uint8_t getThreshWet()   const { return m_settings.m_threshWet; }
+  uint8_t getSoakMinutes() const { return m_settings.m_soakMinutes; }
+  uint8_t getHumidity()    const { return m_currentHumidity; }
 
-  void setPumpMillis(unsigned int ms) { m_pumpMillis = ms; }
-  void setThreshDry(float thresh) { m_threshDry = thresh; }
-  void setThreshWet(float thresh) { m_threshWet = thresh; }
-  void setSoakMillis(unsigned int ms) { m_soakMillis = ms; }
+  void setPumpSeconds(uint8_t s) { m_settings.m_pumpSeconds = s; }
+  void setThreshDry(uint8_t t)   { m_settings.m_threshDry = t; }
+  void setThreshWet(uint8_t t)   { m_settings.m_threshWet = t; }
+  void setSoakMinutes(uint8_t m) { m_settings.m_soakMinutes = m; }
+
+  const Settings& getSettings() const { return m_settings; }
+  void setSettings(const Settings& settings) { m_settings = settings; }
 
   Sensor& getSensor()
   {
@@ -274,14 +284,7 @@ public:
 private:
   /** Watering circuit ID */
   unsigned int m_id;
-  /** How long the pump should be active between measurements. */
-  unsigned int m_pumpMillis;
-  /** The sensor threshold when the soil is considered dry */
-  float m_threshDry;
-  /** The sensor threshold when the soil is considered wet */
-  float m_threshWet;
-  /** How long the pumped in water should soak before measuring the humidity again */
-  unsigned int m_soakMillis;
+  Settings m_settings;
 
   Sensor& m_sensor;
   Valve& m_valve;
@@ -289,8 +292,9 @@ private:
 
   /* State variables */
   State m_state;
+  /* TODO: we sould count iterations here instead of detecting the first iteration only and set a maximum number such that we could detect issues when a circuits waters forever */
   bool m_firstIteration;
-  float m_currentHumidity;
+  uint8_t m_currentHumidity;
   unsigned long m_soakStartMillis;
 
   /* TODO: statistics */
@@ -305,5 +309,6 @@ class Reservoir
 public:
 private:
 };
+
 
 #endif  /* #ifndef EW_WATER_CIRCUIT */

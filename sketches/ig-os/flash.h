@@ -7,16 +7,30 @@
 #ifndef EW_IG_FLASH_H
 #define EW_IG_FLASH_H
 
-#include <Arduino.h>
+#include "system.h"
+
+const unsigned int MaxSsidNameLen = 64;
+const unsigned int MaxSsidPassLen = 64;
 
 struct FlashDataSet // FLASH backed data
 {
-  uint16_t size;          // if size changes, use defaults
-  uint16_t sum;           // if sum is different from memory struct, write
-  char     szSSID[64];
-  char     szSSIDPassword[64];
+  uint16_t                size;          // if size changes, use defaults
+  uint16_t                sum;           // if sum is different from memory struct, write
+  char                    szSSID[MaxSsidNameLen];
+  char                    szSSIDPassword[MaxSsidPassLen];
 
-  uint8_t  reserved[380];  /* keep the struct at total 512 bytes */
+  /* TODO: instead of copying this stuff around and have it redundant in memory we could map it directly into those objects by reference */
+  WaterCircuit::Settings  waterCircuitSettings[NumWaterCircuits];
+  SchedulerTime::SchedulerTimeStruct     schedulerTimes[NumSchedulerTimes];
+
+  uint8_t  reserved[512
+    - sizeof(uint16_t)
+    - sizeof(uint16_t)
+    - sizeof(char) * MaxSsidNameLen
+    - sizeof(char) * MaxSsidPassLen
+    - sizeof(WaterCircuit::Settings) * NumWaterCircuits
+    - sizeof(SchedulerTime::SchedulerTimeStruct) * NumSchedulerTimes
+    ];  /* keep the struct at total 512 bytes */
 
   
 #if 0
@@ -60,6 +74,7 @@ class FlashMemory
 public:
   FlashMemory();
   void update(void);
+  void load();
 private:
   static uint16_t fletcher16( uint8_t* data, int count);
 };

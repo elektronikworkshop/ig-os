@@ -23,14 +23,18 @@ void setup()
 
   connectWiFi(WiFiSSID, WiFiPSK);
 
-  systemTimeInit();
+  timeClient.begin();
 
   cliInit();
 
-  circuit.begin();
-  thingSpeakLogger.begin();
+  for (WaterCircuit** w = circuits; *w; w++) {
+    (*w)->begin();
+  }
+//  thingSpeakLogger.begin();
   spi.begin();
   adc.begin();
+
+  flashMemory.load();
 
   pinMode(LED_BUILTIN, OUTPUT);
 }
@@ -39,7 +43,7 @@ void setup()
 void loop()
 {
   cliRun();
-  systemTimeRun();
+  timeClient.update();
   
   switch (systemMode.getMode()) {
     
@@ -58,7 +62,7 @@ void loop()
       
       cliTrigger = false;
 
-      thingSpeakLogger.run();
+//      thingSpeakLogger.run();
       
       break;
     }

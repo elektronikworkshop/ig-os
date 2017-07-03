@@ -33,8 +33,7 @@ public:
       float humidity = sensor.read();
       sensor.disable();
   
-      log(humidity,
-          m_circuit.getPump().getTotalEnabledTimeMs()/1000);
+      log(humidity, m_circuit.getPump().getTotalEnabledSeconds());
       
       m_previousLogTime = millis();
     }
@@ -89,5 +88,5 @@ private:
 const unsigned long thingspeakChannelId = 291734;
 const char* thingspeakWriteApiKey = "GJESUISMQX7ZDJCP";
 
-ThingSpeakLogger thingSpeakLogger(circuit, 60, thingspeakChannelId, thingspeakWriteApiKey);
+//ThingSpeakLogger thingSpeakLogger(circuit, 60, thingspeakChannelId, thingspeakWriteApiKey);
 
