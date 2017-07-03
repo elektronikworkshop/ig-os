@@ -54,7 +54,7 @@ void loop()
     {
       bool trigger = wateringDue();
       for (WaterCircuit** c = circuits; *c; c++) {
-        if (trigger || cliTrigger) {
+        if ((trigger or cliTrigger) and (*c)->isEnabled()) {
           (*c)->trigger();
         }
         (*c)->run();

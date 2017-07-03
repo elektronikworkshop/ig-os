@@ -80,6 +80,9 @@ private:
   unsigned int m_millisPrepare;
 };
 
+/** 
+ *  TODO: Note that pumps valves sensors that are part of multiple watering circuits get their begin() member function called once for each circuit. 
+ */
 class ProtoPump:
   public Pump
 {

@@ -2,6 +2,12 @@
 #ifndef EW_WATER_CIRCUIT
 #define EW_WATER_CIRCUIT
 
+/**
+ * Note that pumps valves sensors that are part of multiple watering circuits get their begin() member function called once for each circuit. 
+ * 
+ * 
+ * TODO: Should migrate everything to seconds.
+ */
 class Pump
 {
 public:
@@ -267,6 +273,11 @@ public:
 
   const Settings& getSettings() const { return m_settings; }
   void setSettings(const Settings& settings) { m_settings = settings; }
+
+  bool isEnabled() const
+  {
+    return m_settings.m_pumpSeconds > 0;
+  }
 
   Sensor& getSensor()
   {
