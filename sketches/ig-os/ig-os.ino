@@ -9,6 +9,7 @@
 #include "water_circuit.h"
 #include "cli.h"
 #include "adc.h"
+#include "spi.h"
 #include "flash.h"
 
 FlashMemory flashMemory;

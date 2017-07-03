@@ -1,7 +1,7 @@
 #ifndef EW_IG_ADC_H
 #define EW_IG_ADC_H
 
-#include "spi.h"
+#include <Arduino.h>
 
 class Adc
 {
@@ -29,75 +29,36 @@ public:
     : m_state(StateIdle)
   { }
   
-  void begin()
-  {
-    pinMode(SensorPowerPin, OUTPUT);
-    digitalWrite(SensorPowerPin, LOW);
-  }
-  
-  void run()
-  {
-    auto now = millis();
-    
-    switch (m_state) {
-      case StateIdle:
-        break;
-      case StatePowerUp:
-        if (now - m_lastStateChangeMs > msPowerUp) {
-          spi.setAdcChannel(m_channel);
-          changeState(StateAdcSetup);
-        }
-        break;
-      case StateAdcSetup:
-        if (now - m_lastStateChangeMs > msAdcSetup) {
-          m_result = analogRead(SensorAdcPin);
-          changeState(StateDone);
-        }
-        break;
-      case StateDone:
-        break;
-    }
-  }
-  
-  bool request(Channel channel)
-  {
-    if (m_state != StateIdle) {
-      return false;
-    }
+  void begin();  
+  void run();  
+  bool request(Channel channel);
 
-    digitalWrite(SensorPowerPin, HIGH);
-    
-    changeState(StatePowerUp);
-  }
-  
-  unsigned int getResult()
+  State getState() const
   {
-    changeState(StateIdle);
-    
+    return m_state;
+  }
+  bool conversionDone() const
+  {
+    return m_state == StateDone;
+  }
+  uint16_t getResult() const
+  {
     return m_result;
   }
-private:
-  void changeState(State newState)
+  void reset()
   {
-    switch (newState) {
-      /* Make sure that we power off with channel 0 selected to 
-       *  avoid current through ESD protection diodes
-       */
-      case StateIdle:
-        spi.setAdcChannel(0);
-        digitalWrite(SensorPowerPin, LOW);
-        break;
-    }
-    m_state = newState;
-    m_lastStateChangeMs = millis();
+      changeState(StateIdle);
   }
+private:
+  void changeState(State newState);
+  
   State m_state;
   Channel m_channel;
   unsigned long m_lastStateChangeMs;
-  unsigned int m_result;
+  uint16_t m_result;
 };
 
-Adc adc;
+extern Adc adc;
 
 #endif /* EW_IG_ADC_H */
 

@@ -30,7 +30,7 @@ inline void setBitfields(T& target, T value)
 {
   value <<= shift;
   value &= mask;
-  target &= mask;
+  target &= ~mask;
   target |= value;
 }
 

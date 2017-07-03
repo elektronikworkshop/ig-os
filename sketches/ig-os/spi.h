@@ -75,6 +75,9 @@ public:
     Valve3 = 0b0100,
     Valve4 = 0b1000,
   } Valve;
+  /**
+   * Note: only one bitfield can be active at once.
+   */
   bool setValve(Valve valve)
   {
     unsigned char val = static_cast<unsigned char>(valve);
@@ -109,7 +112,7 @@ private:
   unsigned char m_register;
 };
 
-Spi spi;
+extern Spi spi;
 
 #endif /* EW_IG_SPI_H */
 

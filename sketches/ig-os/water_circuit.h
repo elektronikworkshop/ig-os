@@ -64,6 +64,7 @@ public:
   {
     StateIdle = 0,
     StatePrepare,
+    StateConvert,
     StateReady,
   } State;
 
@@ -89,7 +90,8 @@ protected:
       Serial.print("New sensor state: ");
       Serial.println((m_state == StateIdle    ? "Idle" :
                      (m_state == StatePrepare ? "Prepare" :
-                                                "Ready")));
+                     (m_state == StateConvert ? "Convert" :
+                                                "Ready"))));
     }
   }
 private:

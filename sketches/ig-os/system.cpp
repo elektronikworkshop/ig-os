@@ -1,4 +1,6 @@
 #include "system.h"
+#include "adc.h"
+#include "spi.h"
 
 #include <WiFiUdp.h>
 
@@ -18,46 +20,40 @@ class ProtoSensor:
   public Sensor
 {
 public:
-  const int PinVddSensor = D7;
   
-  ProtoSensor(const unsigned int millisPrepare = 2000)
-    : m_millisPrepare(millisPrepare)
+  ProtoSensor(Adc::Channel channel)
+    : m_adcChannel(channel)
   {}
   virtual void begin()
   {
-    pinMode(PinVddSensor, OUTPUT);
-    digitalWrite(PinVddSensor, LOW);
-  }
-  virtual ~ProtoSensor()
-  {
-    digitalWrite(PinVddSensor, LOW);
   }
   virtual void enable()
   {
     switch (getState()) {
       case StateIdle:
-        digitalWrite(PinVddSensor, HIGH);
-        m_millisEnabled = millis();
-        setState(StatePrepare);
+        m_result = 0;
+        if (adc.request(m_adcChannel)) {
+          setState(StateConvert);
+        } else {
+          setState(StatePrepare);
+        }
         break;
     }
   }
   virtual void disable()
   {
     switch (getState()) {
-      case StatePrepare:
+      case StateConvert:
       case StateReady:
-        digitalWrite(PinVddSensor, LOW);
-        setState(StateIdle);
+        adc.reset();
         break;
     }
   }
   virtual uint8_t read()
   {
-    unsigned int v = analogRead(A0) / 4;
+    unsigned int v = adc.getResult() / 4;
         
-    Serial.print("ProtoSensor::read ");
-    Serial.println(v);
+    Serial << "Sensor " << m_adcChannel << ": " << v << "\n";
 
     /* Clip and invert */
     v = v > 255 ? 255 : v;
@@ -69,15 +65,22 @@ public:
   {
     switch (getState()) {
       case StatePrepare:
-        if (millis() - m_millisEnabled > m_millisPrepare) {
-          setState(StateReady);
+        if (adc.request(m_adcChannel)) {
+          setState(StateConvert);
+        } else {
+          setState(StatePrepare);
         }
-      break;
+        break;
+      case StateConvert:
+          if (adc.conversionDone()) {
+            setState(StateReady);
+          }
+        break;
     }
   }
 private:
-  unsigned long m_millisEnabled;
-  unsigned int m_millisPrepare;
+  Adc::Channel m_adcChannel;
+  uint8_t m_result;
 };
 
 /** 
@@ -87,33 +90,48 @@ class ProtoPump:
   public Pump
 {
 public:
-  const int PinPump = D6;
   virtual void begin()
   {
-    pinMode(PinPump, OUTPUT);
-    digitalWrite(PinPump, LOW);
   }
   virtual void enable()
   {
     if (isEnabled()) {
       return;
     }
-    Serial.println("ProtoPump: On");
-    pinMode(PinPump, INPUT);
+    spi.setPump(true);
     Pump::enable();
+    Serial.println("ProtoPump: On");
   }
   virtual void disable()
   {
     if (not isEnabled()) {
       return;
     }
-    Serial.println("ProtoPump: Off");
-    pinMode(PinPump, OUTPUT);
-    digitalWrite(PinPump, LOW);
+    spi.setPump(false);
     Pump::disable();
+    Serial.println("ProtoPump: Off");
   }
 };
 
+class OnboardValve
+  : public Valve
+{
+public:
+  OnboardValve(Spi::Valve valve)
+    : m_valve(valve)
+  {}
+  virtual void begin() {}
+  virtual void open()
+  {
+    spi.setValve(m_valve);
+  }
+  virtual void close()
+  {
+    spi.setValve(Spi::ValveNone);
+  }
+private:
+  Spi::Valve m_valve;
+};
 
 /* Humidity read:
  *  
@@ -123,15 +141,15 @@ public:
 
 ProtoPump pump;
 
-ProtoSensor sensor0;
-ProtoSensor sensor1;
-ProtoSensor sensor2;
-ProtoSensor sensor3;
+ProtoSensor sensor0(Adc::ChSensor1);
+ProtoSensor sensor1(Adc::ChSensor2);
+ProtoSensor sensor2(Adc::ChSensor3);
+ProtoSensor sensor3(Adc::ChSensor4);
 
-Valve valve0;
-Valve valve1;
-Valve valve2;
-Valve valve3;
+OnboardValve valve0(Spi::Valve1);
+OnboardValve valve1(Spi::Valve2);
+OnboardValve valve2(Spi::Valve3);
+OnboardValve valve3(Spi::Valve4);
 
 WaterCircuit circuit0(0, sensor0, valve0, pump);
 WaterCircuit circuit1(1, sensor0, valve0, pump);
