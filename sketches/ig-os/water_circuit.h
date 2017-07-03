@@ -147,7 +147,7 @@ public:
     , m_settings(settings)
 
     , m_state(StateIdle)
-    , m_firstIteration(true)
+    , m_iterations(0)
     , m_currentHumidity(0)
   { }
   typedef enum
@@ -177,7 +177,7 @@ public:
       return;
     }
     m_state = StateTriggered;
-    m_firstIteration = true;
+    m_iterations = 0;
     Serial.println("Water state: Triggered");
   }
   void run()
@@ -208,8 +208,8 @@ public:
              * After watering we check if it's wet -- so we
              * have a little hysteresis here.
              */
-            if ((    m_firstIteration and m_currentHumidity <= m_settings.m_threshDry) or
-                (not m_firstIteration and m_currentHumidity <= m_settings.m_threshWet))
+            if ((m_iterations == 0 and m_currentHumidity <= m_settings.m_threshDry) or
+                (m_iterations  > 0 and m_currentHumidity <= m_settings.m_threshWet))
             {
               m_valve.open();
               m_pump.enable();
@@ -235,7 +235,7 @@ public:
         if ((millis() - m_soakStartMillis) / (60 * 1000) > m_settings.m_soakMinutes) {
           /* We must return to triggered state to avoid sensor collisions */
           m_state = StateTriggered;
-          m_firstIteration = false;
+          m_iterations++;
           Serial.println("Water state: Triggered");
         }
         break;
@@ -279,6 +279,8 @@ public:
     return m_settings.m_pumpSeconds > 0;
   }
 
+  uint8_t getNumIterations() const { return m_iterations; }
+  
   Sensor& getSensor()
   {
     return m_sensor;
@@ -304,7 +306,7 @@ private:
   /* State variables */
   State m_state;
   /* TODO: we sould count iterations here instead of detecting the first iteration only and set a maximum number such that we could detect issues when a circuits waters forever */
-  bool m_firstIteration;
+  uint8_t m_iterations;
   uint8_t m_currentHumidity;
   unsigned long m_soakStartMillis;
 
