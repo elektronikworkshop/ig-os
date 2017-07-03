@@ -111,17 +111,14 @@ private:
 
 /* TODO: remember when run previously
  *
- * TODO: rename StateTriggered to StateSensorWait
- * and add new state StatePumpWait - this way we can interleave
- * sensing, watering and soaking of all circuits and do not have
- * to run them sequentially
- *
+ * TODO: define something like max-iterations to avoid the pump to run infinitely because of an empty reservoir without reservoir sensor
  *
  */
 
 class WaterCircuit
 {
 public:
+  
   typedef struct
   {
     /** How long the pump should be active between measurements.
@@ -135,6 +132,7 @@ public:
     /** How long the pumped in water should soak before measuring the humidity again. */
     uint8_t m_soakMinutes;
   } Settings;
+  
   WaterCircuit(const unsigned int& id,
                Sensor& sensor,
                Valve& valve,
@@ -154,9 +152,10 @@ public:
   {
     StateIdle = 0,
     /** Circuit is triggered but is waiting until busy hardware gets ready, e.g. sensors */
-    StateTriggered,
+    StateWaitSensor,
     StateSense,
-    StateWater,
+    StateWaitPump,
+    StatePump,
     StateSoak
   } State;
 
@@ -176,7 +175,7 @@ public:
     if (m_state != StateIdle) {
       return;
     }
-    m_state = StateTriggered;
+    m_state = StateWaitSensor;
     m_iterations = 0;
     Serial.println("Water state: Triggered");
   }
@@ -185,7 +184,7 @@ public:
     switch (m_state) {
       case StateIdle:
         break;
-      case StateTriggered:
+      case StateWaitSensor:
         if (m_sensor.getState() == Sensor::StateIdle) {
           m_state = StateSense;
           Serial.println("Water state: Sensing");
@@ -211,10 +210,14 @@ public:
             if ((m_iterations == 0 and m_currentHumidity <= m_settings.m_threshDry) or
                 (m_iterations  > 0 and m_currentHumidity <= m_settings.m_threshWet))
             {
-              m_valve.open();
-              m_pump.enable();
-              m_state = StateWater;
-              Serial.println("Water state: Watering");
+              if (not m_pump.isEnabled()) {
+                m_valve.open();
+                m_pump.enable();
+                m_state = StatePump;
+                Serial.println("Water state: Watering");
+              } else {
+                m_state = StateWaitPump;
+              }
             } else {
               m_state = StateIdle;
               Serial.println("Water state: Idle");
@@ -222,7 +225,15 @@ public:
             break;
         }
         break;
-      case StateWater:
+      case StateWaitPump:
+        if (not m_pump.isEnabled()) {
+          m_valve.open();
+          m_pump.enable();
+          m_state = StatePump;
+          Serial.println("Water state: Watering");
+        }
+        break;
+      case StatePump:
         if (m_pump.secondsEnabled() >= m_settings.m_pumpSeconds) {
           m_pump.disable();
           m_valve.close();
@@ -234,7 +245,7 @@ public:
       case StateSoak:
         if ((millis() - m_soakStartMillis) / (60 * 1000) > m_settings.m_soakMinutes) {
           /* We must return to triggered state to avoid sensor collisions */
-          m_state = StateTriggered;
+          m_state = StateWaitSensor;
           m_iterations++;
           Serial.println("Water state: Triggered");
         }
@@ -248,7 +259,7 @@ public:
   void reset()
   {
     if (m_state != StateIdle) {
-      if (m_state != StateTriggered) {
+      if (m_state != StateWaitSensor) {
         m_sensor.disable();
         m_pump.disable();
         m_valve.close();
