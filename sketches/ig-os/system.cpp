@@ -16,12 +16,12 @@ NTPClient timeClient(ntpUDP,
 
 SystemMode systemMode;
 
-class ProtoSensor:
+class OnboardSensor:
   public Sensor
 {
 public:
   
-  ProtoSensor(Adc::Channel channel)
+  OnboardSensor(Adc::Channel channel)
     : m_adcChannel(channel)
   {}
   virtual void begin()
@@ -46,6 +46,7 @@ public:
       case StateConvert:
       case StateReady:
         adc.reset();
+        setState(StateIdle);
         break;
     }
   }
@@ -86,7 +87,7 @@ private:
 /** 
  *  TODO: Note that pumps valves sensors that are part of multiple watering circuits get their begin() member function called once for each circuit. 
  */
-class ProtoPump:
+class OnboardPump:
   public Pump
 {
 public:
@@ -129,6 +130,11 @@ public:
   {
     spi.setValve(Spi::ValveNone);
   }
+  virtual bool isOpen() const
+  {
+    return (static_cast<uint8_t>(spi.getValve()) & static_cast<uint8_t>(m_valve)) != 0;
+  }
+
 private:
   Spi::Valve m_valve;
 };
@@ -139,12 +145,12 @@ private:
  * 67.55
  */
 
-ProtoPump pump;
+OnboardPump pump;
 
-ProtoSensor sensor0(Adc::ChSensor1);
-ProtoSensor sensor1(Adc::ChSensor2);
-ProtoSensor sensor2(Adc::ChSensor3);
-ProtoSensor sensor3(Adc::ChSensor4);
+OnboardSensor sensor0(Adc::ChSensor1);
+OnboardSensor sensor1(Adc::ChSensor2);
+OnboardSensor sensor2(Adc::ChSensor3);
+OnboardSensor sensor3(Adc::ChSensor4);
 
 OnboardValve valve0(Spi::Valve1);
 OnboardValve valve1(Spi::Valve2);
@@ -152,9 +158,9 @@ OnboardValve valve2(Spi::Valve3);
 OnboardValve valve3(Spi::Valve4);
 
 WaterCircuit circuit0(0, sensor0, valve0, pump);
-WaterCircuit circuit1(1, sensor0, valve0, pump);
-WaterCircuit circuit2(2, sensor0, valve0, pump);
-WaterCircuit circuit3(3, sensor0, valve0, pump);
+WaterCircuit circuit1(1, sensor1, valve1, pump);
+WaterCircuit circuit2(2, sensor2, valve2, pump);
+WaterCircuit circuit3(3, sensor3, valve3, pump);
 
 WaterCircuit* circuits[NumWaterCircuits + 1] = {&circuit0, &circuit1, &circuit2, &circuit3, NULL};
 

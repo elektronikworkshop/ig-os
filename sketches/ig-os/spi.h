@@ -13,14 +13,14 @@
 class Spi
 {
 public:
-  static const unsigned char AdcMask    = 0b00000111;
-  static const unsigned char AdcShift   = 0;
-
-  static const unsigned char PumpMask   = 0b00001000;
-  static const unsigned char PumpShift  = 3;
+  static const unsigned char AdcMask    = 0b11100000;
+  static const unsigned char AdcShift   = 5;
   
-  static const unsigned char ValveMask  = 0b11110000;
-  static const unsigned char ValveShift = 4;
+  static const unsigned char PumpMask   = 0b00000001;
+  static const unsigned char PumpShift  = 0;
+  
+  static const unsigned char ValveMask  = 0b00011110;
+  static const unsigned char ValveShift = 1;
   
   Spi()
     : m_register(0)
@@ -32,12 +32,7 @@ public:
     pinMode(SpiLatchPin, OUTPUT);
 
     SPI.begin();
-
-    /* MSBFIRST is default, for convenience we switch to LSBFIRST
-     *  since our R_SENSE_MUX is at lowest in the local byte and
-     *  highest in the register byte.
-     */
-    SPI.setBitOrder (LSBFIRST);
+    SPI.setBitOrder (MSBFIRST);
     
     m_register = 0;
     transmit();
@@ -74,6 +69,7 @@ public:
     Valve2 = 0b0010,
     Valve3 = 0b0100,
     Valve4 = 0b1000,
+    ValveCount = 4,
   } Valve;
   /**
    * Note: only one bitfield can be active at once.
@@ -84,6 +80,7 @@ public:
     
     /* We allow only one valve to be active at once */
     if (countBits(val) > 1) {
+      Serial<< "TOO MANY BITS FOR VALVE\n";
       return false;
     }
     
@@ -101,9 +98,18 @@ private:
 
   void transmit()
   {
+    Serial << "spi transmit: ";
+    Serial.println(m_register, BIN);
+    
     digitalWrite(SpiLatchPin, LOW);
+
+//    delayMicroseconds(10000);
+    
     /* shift */
     SPI.transfer(m_register);
+
+//    delayMicroseconds(10000);
+
     /* latch */
     digitalWrite(SpiLatchPin, HIGH);
   }

@@ -8,6 +8,8 @@
 #include <SerialCommand.h>
 #include "system.h"
 #include "log.h"
+#include "spi.h"
+#include "adc.h"
 
 SerialCommand sCmd;
 
@@ -64,52 +66,52 @@ bool cmdParseId(int& id, WaterCircuit*& w)
 
 void cmdHelp()
 {
-  Serial
-    << "----------------\n"
-    << "help\n"
-    << "  print this help\n"
-    << "rssi\n"
-    << "  display the current RSSI\n"
-    << "time\n"
-    << "  display current time\n"
-    << "mode <off, auto, man>\n"
-    << "  switch the intelligüss mode\n"
-    << "WATERING CIRCUITS:\n"
-    << "c.trig [id]\n"
-    << "  manually trigger watering cycle. if [id] is provided only\n"
-    << "  circuit with [id] is triggered\n"
-    << "c.read <id>\n"
-    << "  read sensor of circuit with ID <id>\n"
-    << "c.pump <id> <seconds>\n"
-    << "  run pump of circuit with ID <id> for <seconds> seconds\n"
-    << "c.info [id]\n"
-    << "  display settings and state of circuit with ID [id]\n"
-    << "  if no [id] is provided the info is printed for all circuits\n"
-    << "c.set <id> <param>\n"
-    << "  change settings and state of circuit with ID <id>\n"
-    << "  <param> must be one of:\n"
-    << "    pump <seconds>\n"
-    << "      set pump time in seconds\n"
-    << "    soak <seconds>\n"
-    << "      set soak time in seconds\n"
-    << "    dry <thresh>\n"
-    << "      set dry threshold, range 0 .. 1.0\n"
-    << "    wet <thresh>\n"
-    << "      set wet threshold, range 0 .. 1.0\n"
-    << "c.log [id]\n"
-    << "  test remote logging. if no ID is provided, all info of all circuits will be logged\n"
-    << "SCHEDULER\n"
-    << "s.info\n"
-    << "  print scheduler configuration\n"
-    << "s.set <index> <time>\n"
-    << "  configure scheduler whereas\n"
-    << "    <index> is the entry number between " << 1 << " and " << NumSchedulerTimes << "\n"
-    << "    <time> is the time formatted \"hh:mm\" or \"off\"\n"
-    << "RESERVOIR\n"
-    << "r.read\n"
-    << "  read reservoir level\n"
-    << "----------------\n"
-    ;
+  Serial.print(F(
+    "----------------\n"
+    "help\n"
+    "  print this help\n"
+    "rssi\n"
+    "  display the current RSSI\n"
+    "time\n"
+    "  display current time\n"
+    "mode <off, auto, man>\n"
+    "  switch the intelligüss mode\n"
+    "WATERING CIRCUITS:\n"
+    "c.trig [id]\n"
+    "  manually trigger watering cycle. if [id] is provided only\n"
+    "  circuit with [id] is triggered\n"
+    "c.read <id>\n"
+    "  read sensor of circuit with ID <id>\n"
+    "c.pump <id> <seconds>\n"
+    "  run pump of circuit with ID <id> for <seconds> seconds\n"
+    "c.info [id]\n"
+    "  display settings and state of circuit with ID [id]\n"
+    "  if no [id] is provided the info is printed for all circuits\n"
+    "c.set <id> <param>\n"
+    "  change settings and state of circuit with ID <id>\n"
+    "  <param> must be one of:\n"
+    "    pump <seconds>\n"
+    "      set pump time in seconds\n"
+    "    soak <seconds>\n"
+    "      set soak time in seconds\n"
+    "    dry <thresh>\n"
+    "      set dry threshold, range 0 .. 1.0\n"
+    "    wet <thresh>\n"
+    "      set wet threshold, range 0 .. 1.0\n"
+    "c.log [id]\n"
+    "  test remote logging. if no ID is provided, all info of all circuits will be logged\n"
+    "SCHEDULER\n"
+    "s.info\n"
+    "  print scheduler configuration\n"
+    "s.set <index> <time>\n"
+    "  configure scheduler whereas\n"
+    "    <index> is the entry number between 1 and "  /*<< NumSchedulerTimes << */ "8\n"
+    "    <time> is the time formatted \"hh:mm\" or \"off\"\n"
+    "RESERVOIR\n"
+    "r.read\n"
+    "  read reservoir level\n"
+    "----------------\n"
+  ));
 }
 
 void cmdRssi()
@@ -126,13 +128,13 @@ void cmdMode()
 {
   char* arg = sCmd.next();
   if (arg == NULL) {
-    Serial.println("mode argument missing");
+    Serial.println(F("mode argument missing"));
     return;
   }
   
   SystemMode::Mode newMode = SystemMode::str2Mode(arg);
   if (newMode == SystemMode::Invalid) {
-    Serial << "invalid mode argument \"" << arg << "\" -- allowed are: <off, auto, man>\n";
+    Serial << F("invalid mode argument \"") << arg << F("\" -- allowed are: <off, auto, man>\n");
     return;
   }
 
@@ -185,11 +187,13 @@ void cmdCircuitRead()
   while (s.getState() != Sensor::StateReady) {
     delay(500);
     s.run();
+    spi.run();
+    adc.run();
   }
-  float h = s.read();
+  auto h = s.read();
   s.disable();
 
-  Serial << "humidity of " << id << " is " << h * 100 << " %\n";
+  Serial << "humidity of " << id << " is " << h << "/255\n";
 }
 
 void cmdCircuitPump()
@@ -220,6 +224,51 @@ void cmdCircuitPump()
   p.disable();
 
   Serial << "pump disabled " << timeClient.getFormattedTime() << "\n";
+}
+
+void cmdCircuitValve()
+{
+    if (systemMode.getMode() != SystemMode::Manual) {
+    Serial << "you need to be in manual mode to do this\n";
+    return;
+  }
+  
+  int id;
+  WaterCircuit* w;
+  if (not cmdParseId(id, w)) {
+    id = 1;
+    for (WaterCircuit** w = circuits; *w; w++, id++) {
+      Serial << "  valve " << id << ((*w)->getValve().isOpen() ? " open" : " closed") << "\n";
+    }
+    return;
+  }
+
+  const char* arg = sCmd.next();
+  
+  if (not arg) {
+    Serial << "  valve " << id << (w->getValve().isOpen() ? " open" : " closed") << "\n";
+    return;
+  }
+  bool open;
+  if (strcmp(arg, "open") == 0) {
+    open = true;
+  } else if (strcmp(arg, "close") == 0) {
+    open = false;
+  } else {
+    Serial << "no valve argument supplied. valid arguments are \"open\" and \"close\"\n";
+    return;
+  }
+
+
+  // TODO: make sure that the valve is not used (currently not supported by valve)
+  auto& v = w->getValve();
+  if (open) {
+    v.open();
+    Serial << "valve " << id << " opened " << timeClient.getFormattedTime() << "\n";
+  } else {
+    v.close();
+    Serial << "valve " << id << " closed " << timeClient.getFormattedTime() << "\n";
+  }
 }
 
 void prtCircuitInfo(WaterCircuit* w, int id)
@@ -438,6 +487,7 @@ void cliInit()
   sCmd.addCommand("c.trig", cmdCircuitTrigger);
   sCmd.addCommand("c.read", cmdCircuitRead);
   sCmd.addCommand("c.pump", cmdCircuitPump);
+  sCmd.addCommand("c.valve", cmdCircuitValve);
   sCmd.addCommand("c.info", cmdCircuitInfo);
   sCmd.addCommand("c.set",  cmdCircuitSet);
   sCmd.addCommand("c.log",  cmdCircuitLog);

@@ -28,12 +28,13 @@ void setup()
 
   cliInit();
 
+  spi.begin();
+  adc.begin();
+
   for (WaterCircuit** w = circuits; *w; w++) {
     (*w)->begin();
   }
 //  thingSpeakLogger.begin();
-  spi.begin();
-  adc.begin();
 
   flashMemory.load();
 

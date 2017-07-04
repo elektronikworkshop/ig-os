@@ -20,7 +20,7 @@ inline unsigned int countBits(T value)
   T mask = 0x1;
   unsigned int count = 0;
   for (unsigned int i = 0; i < sizeof(T) * 8; i++, mask <<= 1) {
-    count += value & mask != 0 ? 1 : 0;
+    count += (value & mask) != 0 ? 1 : 0;
   }
   return count;
 }

@@ -42,6 +42,8 @@ Adc::request(Channel channel)
     return false;
   }
 
+  m_channel = channel;
+  
   digitalWrite(SensorPowerPin, HIGH);
   
   changeState(StatePowerUp);
@@ -57,6 +59,16 @@ Adc::changeState(State newState)
     case StateIdle:
       spi.setAdcChannel(0);
       digitalWrite(SensorPowerPin, LOW);
+      Serial << F("ADC idle\n");
+      break;
+    case StatePowerUp:
+      Serial << F("ADC power up\n");
+      break;
+    case StateAdcSetup:
+      Serial << F("ADC setup\n");
+      break;
+    case StateDone:
+      Serial << F("ADC done\n");
       break;
   }
   m_state = newState;

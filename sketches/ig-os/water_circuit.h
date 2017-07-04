@@ -105,8 +105,9 @@ class Valve
 {
 public:
   virtual void begin() {}
-  virtual void open() {}
-  virtual void close() {}
+  virtual void open() = 0;
+  virtual void close() = 0;
+  virtual bool isOpen() const = 0;
 private:
 };
 
