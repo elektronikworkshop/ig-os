@@ -10,6 +10,8 @@
 #include "log.h"
 #include "spi.h"
 #include "adc.h"
+#include "network.h"
+#include "flash.h"
 
 SerialCommand sCmd;
 
@@ -92,14 +94,14 @@ void cmdHelp()
     "  <param> must be one of:\n"
     "    pump <seconds>\n"
     "      set pump time in seconds\n"
-    "    soak <seconds>\n"
-    "      set soak time in seconds\n"
+    "    soak <minutes>\n"
+    "      set soak time in minutes\n"
     "    dry <thresh>\n"
-    "      set dry threshold, range 0 .. 1.0\n"
+    "      set dry threshold, range 0 .. 255\n"
     "    wet <thresh>\n"
-    "      set wet threshold, range 0 .. 1.0\n"
+    "      set wet threshold, range 0 .. 255\n"
     "c.log [id]\n"
-    "  test remote logging. if no ID is provided, all info of all circuits will be logged\n"
+    "  transmit current data to remote logger. if no ID is provided, all info of all circuits will be logged\n"
     "SCHEDULER\n"
     "s.info\n"
     "  print scheduler configuration\n"
@@ -110,6 +112,13 @@ void cmdHelp()
     "RESERVOIR\n"
     "r.read\n"
     "  read reservoir level\n"
+    "NETWORK\n"
+    "n.ssid <ssid>\n"
+    "  set wifi SSID\n"
+    "n.pass <password>\n"
+    "  set wifi password\n"
+    "n.connect\n"
+    "  connect to configured wifi network\n"
     "----------------\n"
   ));
 }
@@ -274,7 +283,7 @@ void cmdCircuitValve()
 void prtCircuitInfo(WaterCircuit* w, int id)
 {
   Serial
-    <<  "info circuit " << id << ":\n"
+    <<  "on-board circuit " << id << ":\n"
     <<  "  pump time  " << w->getPumpSeconds() / 1000 << " s\n"
     <<  "  dry thresh " << w->getThreshDry() << "\n"
     <<  "  wet thresh " << w->getThreshWet() << "\n"
@@ -363,14 +372,17 @@ void cmdCircuitSet()
 void cmdCircuitLog()
 {
   int id;
-  WaterCircuit* w;
-  if (not cmdParseId(id, w)) {
-    Serial << "invalid index\n";
+
+  if (not cmdParseInt(id, 1, NumWaterCircuits)) {
+    for (Logger** l = loggers; *l; l++) {
+      (*l)->trigger();
+    }
     return;
   }
-//  thingSpeakLogger.trigger();
-}
 
+  Logger* l = loggers[id];
+  l->trigger();
+}
 
 void cmdSchedulerInfo()
 {
@@ -451,22 +463,65 @@ void cmdSchedulerSet()
 
 void cmdReservoirRead()
 {
-  Serial << "not implemented yet\n";
+  Reservoir& r = *reservoirs[0];
+  
+  if (r.getState() != Sensor::StateIdle) {
+    Serial << "reservoir sensor is currently busy, try again later\n";
+    return;
+  }
+  
+  r.enable();
+  while (r.getState() != Sensor::StateReady) {
+    delay(500);
+    r.run();
+    spi.run();
+    adc.run();
+    Serial<<"state: "<<r.getState()<<"\n";
+  }
+  Serial << "reading adc result... \n";
+  auto f = r.read();
+  r.disable();
+
+  Serial << "reservoir fill is " << f << "/255\n";
 }
 
 void cmdNetworkSsid()
 {
-  Serial << "not implemented yet\n";
+  const char* arg = sCmd.next();
+
+  if (arg == NULL or strlen(arg) == 0) {
+    Serial << "no wifi SSID argument\n";
+    return;
+  }
+  strncpy(flashDataSet.wifiSsid, arg, MaxSsidNameLen - 1);
+  flashMemory.update();
+
+  Serial << "wifi SSID \"" << arg << "\" stored to flash\n";
 }
 
 void cmdNetworkPass()
 {
-  Serial << "not implemented yet\n";
+  const char* arg = sCmd.next();
+
+  if (arg == NULL or strlen(arg) == 0) {
+    Serial << "no wifi password argument\n";
+    return;
+  }
+  strncpy(flashDataSet.wifiPass, arg, MaxSsidPassLen - 1);
+  flashMemory.update();
+
+  Serial << "wifi pass \"" << arg << "\" stored to flash\n";
 }
 
 void cmdNetworkConnect()
 {
-  Serial << "not implemented yet\n";
+  network.disconnect();
+  network.connect();
+}
+
+void cmdNetworkList()
+{
+  Network::printVisibleNetworks();
 }
 
 void cmdInvalid(const char *command)
@@ -497,9 +552,10 @@ void cliInit()
 
   sCmd.addCommand("r.read", cmdReservoirRead);
 
-  sCmd.addCommand("n.ssid", cmdNetworkSsid);
-  sCmd.addCommand("n.pass", cmdNetworkPass);
-  sCmd.addCommand("n.connect", cmdNetworkPass);
+  sCmd.addCommand("n.ssid",    cmdNetworkSsid);
+  sCmd.addCommand("n.pass",    cmdNetworkPass);
+  sCmd.addCommand("n.connect", cmdNetworkConnect);
+  sCmd.addCommand("n.list",    &Network::printVisibleNetworks);
 
   sCmd.setDefaultHandler(cmdInvalid);
 }

@@ -6,24 +6,18 @@
  * 
  */
 
-#include "water_circuit.h"
 #include "cli.h"
 #include "adc.h"
 #include "spi.h"
 #include "flash.h"
-
-FlashMemory flashMemory;
-
-const char* WiFiSSID = "TokyoElectricPowerCompany";
-const char* WiFiPSK  = "g3tR1d0ff1t";
+#include "network.h"
 
 void setup()
 {
   Serial.begin(115200);
   Serial.println("");
 
-  connectWiFi(WiFiSSID, WiFiPSK);
-
+  network.begin();
   timeClient.begin();
 
   cliInit();
@@ -34,7 +28,8 @@ void setup()
   for (WaterCircuit** w = circuits; *w; w++) {
     (*w)->begin();
   }
-//  thingSpeakLogger.begin();
+
+  loggerBegin();
 
   flashMemory.load();
 
@@ -45,8 +40,16 @@ void setup()
 void loop()
 {
   cliRun();
-  timeClient.update();
-  
+
+  network.run();
+
+  if (network.isConnected()) {
+    timeClient.update();
+  }
+
+  spi.run();
+  adc.run();
+
   switch (systemMode.getMode()) {
     
     case SystemMode::Off:
@@ -54,18 +57,19 @@ void loop()
     
     case SystemMode::Auto:
     {
-      bool trigger = wateringDue();
-      for (WaterCircuit** c = circuits; *c; c++) {
-        if ((trigger or cliTrigger) and (*c)->isEnabled()) {
-          (*c)->trigger();
-        }
-        (*c)->run();
-      }
-      
+      bool trigger = wateringDue() or cliTrigger;
       cliTrigger = false;
-
-//      thingSpeakLogger.run();
-      
+      for (WaterCircuit** c = circuits; *c; c++) {
+        if ((*c)->isEnabled()) {
+          if (trigger or cliTrigger) {
+            (*c)->trigger();
+          }
+          (*c)->run();
+        }
+      }
+      if (network.isConnected()) {
+        loggerRun();
+      }
       break;
     }
     
@@ -79,40 +83,5 @@ void loop()
     led = led == HIGH ? LOW : HIGH;
     digitalWrite(LED_BUILTIN, led);
   }  
-}
-
-void connectWiFi(const char* ssid, const char* pass)
-{
-  byte ledStatus = LOW;
-
-  // Set WiFi mode to station (as opposed to AP or AP_STA)
-  WiFi.mode(WIFI_STA);
-
-  while (true) {
-
-    WiFi.begin(ssid, pass);
-  
-    const int MillisecondsToTry = 5000;
-    const int IntervalMs = 200;
-
-    for (int i = 0; i < MillisecondsToTry/IntervalMs; i++) {
-    
-      if (WiFi.status() == WL_CONNECTED) {
-        Serial
-          << "connected\n"
-          << "signal strength: " << WiFi.RSSI() << " dB\n"
-          << "IP:              " << WiFi.localIP() << "\n"
-          ;
-        return;
-      }
-      
-      delay(IntervalMs);
-      
-      Serial << ".";
-    }
-    Serial
-      << "failed to connect to " << ssid << " after " << MillisecondsToTry/1000 << "seconds\n";
-    WiFi.disconnect();
-  }
 }
 

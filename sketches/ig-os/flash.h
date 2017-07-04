@@ -16,8 +16,8 @@ struct FlashDataSet // FLASH backed data
 {
   uint16_t                size;          // if size changes, use defaults
   uint16_t                sum;           // if sum is different from memory struct, write
-  char                    szSSID[MaxSsidNameLen];
-  char                    szSSIDPassword[MaxSsidPassLen];
+  char                    wifiSsid[MaxSsidNameLen];
+  char                    wifiPass[MaxSsidPassLen];
 
   /* TODO: instead of copying this stuff around and have it redundant in memory we could map it directly into those objects by reference */
   WaterCircuit::Settings  waterCircuitSettings[NumWaterCircuits];

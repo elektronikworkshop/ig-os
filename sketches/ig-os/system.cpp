@@ -17,7 +17,7 @@ NTPClient timeClient(ntpUDP,
 SystemMode systemMode;
 
 class OnboardSensor:
-  public Sensor
+  public virtual Sensor
 {
 public:
   
@@ -196,5 +196,50 @@ bool wateringDue()
   }
   return false;
 }
+
+
+class OnboardReservoir
+  : public Reservoir
+  , public OnboardSensor  
+{
+public:
+  OnboardReservoir()
+    : OnboardSensor(Adc::ChReservoir)
+  {}
+};
+
+OnboardReservoir reservoir;
+
+Reservoir* reservoirs[NumReservoirs + 1] = {&reservoir, NULL};
+
+
+
+ThingSpeakLogger thingSpeakLogger0(circuit0, 60);//, 291734, "GJESUISMQX7ZDJCP");
+ThingSpeakLogger thingSpeakLogger1(circuit1, 60);
+ThingSpeakLogger thingSpeakLogger2(circuit2, 60);
+ThingSpeakLogger thingSpeakLogger3(circuit3, 60);
+
+Logger* loggers[NumWaterCircuits + 1] =
+{
+  &thingSpeakLogger0,
+  &thingSpeakLogger1,
+  &thingSpeakLogger2,
+  &thingSpeakLogger3,
+  NULL
+};
+
+void loggerBegin()
+{
+  for (Logger** l = loggers; *l; l++) {
+    (*l)->begin();
+  }
+}
+void loggerRun()
+{ 
+  for (Logger** l = loggers; *l; l++) {
+    (*l)->run();
+  }
+}
+
 
 

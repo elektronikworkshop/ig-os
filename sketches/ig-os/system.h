@@ -3,6 +3,7 @@
 
 #include "config.h"
 #include "water_circuit.h"
+#include "log.h"
 
 /* https://github.com/arduino-libraries/NTPClient
  * https://github.com/arduino-libraries/NTPClient/blob/master/NTPClient.h
@@ -131,73 +132,16 @@ extern SchedulerTime* schedulerTimes[NumSchedulerTimes + 1];
 
 bool wateringDue();
 
-class ProtoReservoir
-  : public Reservoir
-{
-public:
-//  const int PinVddSensor = D7;
-  
-  ProtoReservoir(const unsigned int millisPrepare = 2000)
-    : m_millisPrepare(millisPrepare)
-  {}
-  virtual void begin()
-  {
-//    pinMode(PinVddSensor, OUTPUT);
-//    digitalWrite(PinVddSensor, LOW);
-  }
-  virtual ~ProtoReservoir()
-  {
-//    digitalWrite(PinVddSensor, LOW);
-  }
-  virtual void enable()
-  {
-    switch (getState()) {
-      case StateIdle:
-//        digitalWrite(PinVddSensor, HIGH);
-        m_millisEnabled = millis();
-        setState(StatePrepare);
-        break;
-    }
-  }
-  virtual void disable()
-  {
-    switch (getState()) {
-      case StatePrepare:
-      case StateReady:
-//        digitalWrite(PinVddSensor, LOW);
-        setState(StateIdle);
-        break;
-    }
-  }
-  virtual uint8_t read()
-  {
-    unsigned int v;
-//  v = analogRead(A0) / 4;
-        
-    Serial.print("ProtoReservoir::read ");
-    Serial.println(v);
 
-    /* Clip and invert */
-    v = v > 255 ? 255 : v;
-    v = 255 - v;
+const unsigned int NumReservoirs = 1;
 
-    /* Convert to 0 .. 1 scale */
-    return v;
-  }
-  virtual void run()
-  {
-    switch (getState()) {
-      case StatePrepare:
-        if (millis() - m_millisEnabled > m_millisPrepare) {
-          setState(StateReady);
-        }
-      break;
-    }
-  }
-private:
-  unsigned long m_millisEnabled;
-  unsigned int m_millisPrepare;
-};
+extern Reservoir* reservoirs[NumReservoirs + 1];
+
+
+extern Logger* loggers[NumWaterCircuits + 1];
+void loggerBegin();
+void loggerRun();
+
 
 #endif /* #ifndef EW_IG_SYSTEM */
 

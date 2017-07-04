@@ -3,7 +3,7 @@
 
 FlashDataSet flashDataSet = { sizeof(FlashDataSet), 0xAAAA,
   "",  // saved SSID (place your SSID and password here)
-  "", // router password
+  "",  // router password
 
   {{ 30,  /* pump */
     150, /*  dry 0.6 * 255 -- better 0.7 * 255! */
@@ -49,6 +49,8 @@ FlashDataSet flashDataSet = { sizeof(FlashDataSet), 0xAAAA,
   46,           // forecast range for display (5 of 7 day max)
 #endif
 };
+
+FlashMemory flashMemory;
 
 FlashMemory::FlashMemory()
 {

@@ -2,6 +2,8 @@
 #ifndef EW_WATER_CIRCUIT
 #define EW_WATER_CIRCUIT
 
+#include <Arduino.h>
+
 /**
  * Note that pumps valves sensors that are part of multiple watering circuits get their begin() member function called once for each circuit. 
  * 
@@ -74,7 +76,7 @@ public:
   }
   virtual void begin() = 0;
 
-  State getState() const
+  virtual State getState() const
   {
     return m_state;
   }
@@ -331,7 +333,7 @@ private:
  *
  */
 class Reservoir
-  : public Sensor
+  : public virtual Sensor
 {
 public:
 private:
