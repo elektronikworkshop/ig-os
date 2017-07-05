@@ -65,12 +65,12 @@ public:
   static const uint8_t InvalidDay = UINT8_MAX;
   static const uint8_t InvalidHour = UINT8_MAX;
   
-  typedef struct
+  struct Time
   {
     uint8_t  m_hour;
     uint8_t  m_minute;
-  } SchedulerTimeStruct;
-  
+  };
+/*  
   SchedulerTime()
     : m_dayDone(InvalidDay)
     , m_time({InvalidHour, 0})
@@ -80,12 +80,16 @@ public:
     : m_dayDone(InvalidDay)
     , m_time({hour, minute})
   { }
-  SchedulerTime(const SchedulerTimeStruct& t)
+*/
+  SchedulerTime(Time& t)
     : m_dayDone(InvalidDay)
     , m_time(t)
   { }
   uint8_t getHour() const { return m_time.m_hour; }
   uint8_t getMinute() const { return m_time.m_minute; }
+
+  void setHour(uint8_t hour) { m_time.m_hour = hour; }
+  void setMinute(uint8_t minute) { m_time.m_minute = minute; }
 
   /** Checks if due. If due it marks it with the day done and returns true. */
   bool isDue()
@@ -122,7 +126,7 @@ public:
 private:
   /** 0 Sunday, 1 Monday, ... */
   uint8_t  m_dayDone;
-  SchedulerTimeStruct m_time;
+  Time& m_time;
 };
 
 const unsigned int NumSchedulerTimes = 8;

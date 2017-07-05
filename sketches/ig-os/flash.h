@@ -20,9 +20,10 @@ struct FlashDataSet // FLASH backed data
   char                    wifiPass[MaxSsidPassLen];
 
   /* TODO: instead of copying this stuff around and have it redundant in memory we could map it directly into those objects by reference */
-  WaterCircuit::Settings                 waterCircuitSettings[NumWaterCircuits];
-  SchedulerTime::SchedulerTimeStruct     schedulerTimes[NumSchedulerTimes];
-  ThingSpeakLogger::Settings             thingSpeakLoggerSettings[NumWaterCircuits];
+  WaterCircuit::Settings     waterCircuitSettings[NumWaterCircuits];
+  SchedulerTime::Time        schedulerTimes[NumSchedulerTimes];
+  ThingSpeakLogger::Settings thingSpeakLoggerSettings[NumWaterCircuits];
+  
   uint8_t  reserved[32];
   
 #if 0

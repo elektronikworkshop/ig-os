@@ -72,8 +72,6 @@ void cmdHelp()
     "----------------\n"
     "help\n"
     "  print this help\n"
-    "rssi\n"
-    "  display the current RSSI\n"
     "time\n"
     "  display current time\n"
     "mode <off, auto, man>\n"
@@ -115,6 +113,10 @@ void cmdHelp()
     "r.read\n"
     "  read reservoir level\n"
     "NETWORK\n"
+    "n.rssi\n"
+    "  display the current connected network strength (RSSI)\n"
+    "n.list\n"
+    "  list the visible networks\n"
     "n.ssid <ssid>\n"
     "  set wifi SSID\n"
     "n.pass <password>\n"
@@ -123,11 +125,6 @@ void cmdHelp()
     "  connect to configured wifi network\n"
     "----------------\n"
   ));
-}
-
-void cmdRssi()
-{
-  Serial << "current RSSI: " << WiFi.RSSI() << " dB\n";
 }
 
 void cmdTime()
@@ -166,20 +163,12 @@ int cliTriggerId = -1;
 
 void cmdCircuitTrigger()
 {
-  /* todo */
-    
   cliTrigger = true;
   Serial << "watering triggered manually\n";  
 }
 
 void cmdCircuitRead()
 {
-/*
-  if (systemMode.getMode() != SystemMode::Manual) {
-    Serial << "you need to be in manual mode to do this\n";
-    return;
-  }
-*/
   int id;
   WaterCircuit* w;
   if (not cmdParseId(id, w)) {
@@ -302,7 +291,6 @@ void cmdCircuitValve()
     return;
   }
 
-
   // TODO: make sure that the valve is not used (currently not supported by valve)
   auto& v = w->getValve();
   if (open) {
@@ -314,17 +302,27 @@ void cmdCircuitValve()
   }
 }
 
+#include <stdarg.h>
+void p(char *fmt, ... )
+{
+  char buf[128]; // resulting string limited to 128 chars
+  va_list args;
+  va_start (args, fmt );
+  vsnprintf(buf, 128, fmt, args);
+  va_end (args);
+  Serial.print(buf);
+}
+
 void prtCircuitInfo(WaterCircuit* w, int id)
 {
   Serial
     <<  "on-board circuit " << id << ":\n"
-    <<  "           pump time  " << w->getPumpSeconds() << " s\n"
-    <<  "          dry thresh  " << w->getThreshDry() << "\n"
-    <<  "          wet thresh  " << w->getThreshWet() << "\n"
-    <<  "           soak time  " << w->getSoakMinutes() << " m\n"
-    <<  "    reservoir thresh  " << w->getThreshReservoir() << "\n"
-    <<  "  last read humidity  " << w->getHumidity() << "\n"
-    ;
+    <<  "           pump time  "; p("%3u s\n", w->getPumpSeconds());   Serial
+    <<  "          dry thresh  "; p("%3u\n", w->getThreshDry());       Serial
+    <<  "          wet thresh  "; p("%3u\n",  w->getThreshWet());      Serial
+    <<  "           soak time  "; p("%3u m\n", w->getSoakMinutes());   Serial
+    <<  "    reservoir thresh  "; p("%3u\n", w->getThreshReservoir()); Serial
+    <<  "  last read humidity  "; p("%3u\n", w->getHumidity());
 }
 
 void cmdCircuitInfo()
@@ -335,6 +333,9 @@ void cmdCircuitInfo()
     id = 1;
     for (WaterCircuit** c = circuits; *c; c++, id++) {
         prtCircuitInfo(*c, id);
+        if (id != NumWaterCircuits) {
+          Serial << "\n";
+        }
       }
     return;
   }
@@ -342,13 +343,7 @@ void cmdCircuitInfo()
 }
 
 void cmdCircuitSet()
-{
-/*  if (systemMode.getMode() == SystemMode::Auto) {
-    Serial << "you need to be in manual or off mode to do this\n";
-    return;
-  }
- */
- 
+{ 
   int id;
   WaterCircuit* w;
   if (not cmdParseId(id, w)) {
@@ -370,7 +365,6 @@ void cmdCircuitSet()
     }
     w->setPumpSeconds(s);
     Serial << "pump time set to " << s << " seconds\n";
-    return;
   } else if (strcmp(arg, "soak") == 0) {
     int m;
     if (not cmdParseInt(m, 0, 255)) {
@@ -379,7 +373,6 @@ void cmdCircuitSet()
     }
     w->setSoakMinutes(m);
     Serial << "soak time set to " << m << " minutes\n";
-    return;
   } else if (strcmp(arg, "dry") == 0) {
     int t;
     if (not cmdParseInt(t, 0, 255)) {
@@ -388,7 +381,6 @@ void cmdCircuitSet()
     }
     w->setThreshDry(t);
     Serial << "dry threshold set to " << t << "\n";
-    return;
   } else if (strcmp(arg, "wet") == 0) {
     int t;
     if (not cmdParseInt(t, 0, 255)) {
@@ -397,7 +389,6 @@ void cmdCircuitSet()
     }
     w->setThreshWet(t);
     Serial << "wet threshold set to " << t << "\n";
-    return;
   } else if (strcmp(arg, "res") == 0) {
     int t;
     if (not cmdParseInt(t, 0, 255)) {
@@ -406,11 +397,12 @@ void cmdCircuitSet()
     }
     w->setThreshReservoir(t);
     Serial << "reservoir threshold set to " << t << "\n";
-    return;
   } else {
     Serial << "invalid parameter \"" << arg << "\"\n";
     return;
   }
+
+  flashMemory.update();
 }
 
 void cmdCircuitLog()
@@ -470,7 +462,11 @@ void cmdSchedulerSet()
 
   if (strcmp(arg, "off") == 0) {
     Serial << "configuring scheduler entry [" << index << "] to \"off\"\n";
-    *schedulerTimes[index - 1] = SchedulerTime();
+    schedulerTimes[index - 1]->setHour(SchedulerTime::InvalidHour);
+    schedulerTimes[index - 1]->setMinute(0);
+
+    flashMemory.update();
+
     return;
   }
 
@@ -502,8 +498,17 @@ void cmdSchedulerSet()
   prtTwoDigit(m);
   Serial << "\n";
   
-  *schedulerTimes[index - 1] = SchedulerTime(h, m);
+  schedulerTimes[index - 1]->setHour(h);
+  schedulerTimes[index - 1]->setMinute(m);
+
+  flashMemory.update();
 }
+
+void cmdNetworkRssi()
+{
+  Serial << "current RSSI: " << WiFi.RSSI() << " dB\n";
+}
+
 
 void cmdNetworkSsid()
 {
@@ -556,25 +561,26 @@ void cmdInvalid(const char *command)
 void cliInit()
 {
   sCmd.addCommand("help",   cmdHelp);
-  sCmd.addCommand("rssi",   cmdRssi);
   sCmd.addCommand("time",   cmdTime);
   sCmd.addCommand("mode",   cmdMode);
-  sCmd.addCommand("c.trig", cmdCircuitTrigger);
-  sCmd.addCommand("c.read", cmdCircuitRead);
-  sCmd.addCommand("c.res",  cmdCircuitReservoir);
-  sCmd.addCommand("c.pump", cmdCircuitPump);
+  
+  sCmd.addCommand("c.trig",  cmdCircuitTrigger);
+  sCmd.addCommand("c.read",  cmdCircuitRead);
+  sCmd.addCommand("c.res",   cmdCircuitReservoir);
+  sCmd.addCommand("c.pump",  cmdCircuitPump);
   sCmd.addCommand("c.valve", cmdCircuitValve);
-  sCmd.addCommand("c.info", cmdCircuitInfo);
-  sCmd.addCommand("c.set",  cmdCircuitSet);
-  sCmd.addCommand("c.log",  cmdCircuitLog);
+  sCmd.addCommand("c.info",  cmdCircuitInfo);
+  sCmd.addCommand("c.set",   cmdCircuitSet);
+  sCmd.addCommand("c.log",   cmdCircuitLog);
 
-  sCmd.addCommand("s.info", cmdSchedulerInfo);
-  sCmd.addCommand("s.set",  cmdSchedulerSet);
+  sCmd.addCommand("s.info",  cmdSchedulerInfo);
+  sCmd.addCommand("s.set",   cmdSchedulerSet);
 
+  sCmd.addCommand("n.rssi",    cmdNetworkRssi);
+  sCmd.addCommand("n.list",    Network::printVisibleNetworks);
   sCmd.addCommand("n.ssid",    cmdNetworkSsid);
   sCmd.addCommand("n.pass",    cmdNetworkPass);
   sCmd.addCommand("n.connect", cmdNetworkConnect);
-  sCmd.addCommand("n.list",    &Network::printVisibleNetworks);
 
   sCmd.setDefaultHandler(cmdInvalid);
 }

@@ -159,22 +159,22 @@ OnboardValve valve1(Spi::Valve2);
 OnboardValve valve2(Spi::Valve3);
 OnboardValve valve3(Spi::Valve4);
 
-WaterCircuit circuit0(0, sensor0, valve0, pump, reservoir);
-WaterCircuit circuit1(1, sensor1, valve1, pump, reservoir);
-WaterCircuit circuit2(2, sensor2, valve2, pump, reservoir);
-WaterCircuit circuit3(3, sensor3, valve3, pump, reservoir);
+WaterCircuit circuit0(0, sensor0, valve0, pump, reservoir, flashDataSet.waterCircuitSettings[0]);
+WaterCircuit circuit1(1, sensor1, valve1, pump, reservoir, flashDataSet.waterCircuitSettings[1]);
+WaterCircuit circuit2(2, sensor2, valve2, pump, reservoir, flashDataSet.waterCircuitSettings[2]);
+WaterCircuit circuit3(3, sensor3, valve3, pump, reservoir, flashDataSet.waterCircuitSettings[3]);
 
 WaterCircuit* circuits[NumWaterCircuits + 1] = {&circuit0, &circuit1, &circuit2, &circuit3, NULL};
 
 
-SchedulerTime schedulerTime0;
-SchedulerTime schedulerTime1;
-SchedulerTime schedulerTime2;
-SchedulerTime schedulerTime3;
-SchedulerTime schedulerTime4;
-SchedulerTime schedulerTime5;
-SchedulerTime schedulerTime6;
-SchedulerTime schedulerTime7;
+SchedulerTime schedulerTime0(flashDataSet.schedulerTimes[0]);
+SchedulerTime schedulerTime1(flashDataSet.schedulerTimes[1]);
+SchedulerTime schedulerTime2(flashDataSet.schedulerTimes[2]);
+SchedulerTime schedulerTime3(flashDataSet.schedulerTimes[3]);
+SchedulerTime schedulerTime4(flashDataSet.schedulerTimes[4]);
+SchedulerTime schedulerTime5(flashDataSet.schedulerTimes[5]);
+SchedulerTime schedulerTime6(flashDataSet.schedulerTimes[6]);
+SchedulerTime schedulerTime7(flashDataSet.schedulerTimes[7]);
 
 SchedulerTime* schedulerTimes[NumSchedulerTimes + 1] =
 {

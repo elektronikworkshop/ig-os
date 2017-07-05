@@ -31,8 +31,6 @@ void setup()
     (*w)->begin();
   }
 
-  initSettings();
-
   loggerBegin();
 
   pinMode(LED_BUILTIN, OUTPUT);
@@ -85,20 +83,5 @@ void loop()
     led = led == HIGH ? LOW : HIGH;
     digitalWrite(LED_BUILTIN, led);
   }  
-}
-
-
-void initSettings()
-{
-  /* load watering cuircuit settings from flash */
-  for (int i = 0; i < NumWaterCircuits; i++) {
-      WaterCircuit* w = circuits[i];
-      w->setSettings(flashDataSet.waterCircuitSettings[i]);
-  }
-
-  /* load scheduler settings from flash */
-  for (int i = 0; i < NumSchedulerTimes; i++) {
-    *schedulerTimes[i] = SchedulerTime(flashDataSet.schedulerTimes[i]);
-  }
 }
 

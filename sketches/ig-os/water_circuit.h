@@ -145,7 +145,7 @@ public:
                Valve& valve,
                Pump& pump,
                Sensor& reservoir,
-               const Settings& settings = {0})
+               Settings& settings)
     : m_id(id)
     , m_sensor(sensor)
     , m_valve(valve)
@@ -324,7 +324,6 @@ public:
   uint8_t getHumidity()    const { return m_currentHumidity; }
 
   const Settings& getSettings() const { return m_settings; }
-  void setSettings(const Settings& settings) { m_settings = settings; }
 
   bool isEnabled() const
   {
@@ -352,7 +351,7 @@ public:
 private:
   /** Watering circuit ID */
   unsigned int m_id;
-  Settings m_settings;
+  Settings& m_settings;
 
   Sensor& m_sensor;
   Valve& m_valve;
