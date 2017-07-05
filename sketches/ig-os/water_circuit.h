@@ -136,17 +136,21 @@ public:
     uint8_t m_threshWet;
     /** How long the pumped in water should soak before measuring the humidity again. */
     uint8_t m_soakMinutes;
+    /** Threshold below which the reservoir should be considered empty. Range 0 .. 255, whereas 0 turns reservoir checking off. */
+    uint8_t m_threshReservoir;
   } Settings;
   
   WaterCircuit(const unsigned int& id,
                Sensor& sensor,
                Valve& valve,
                Pump& pump,
+               Sensor& reservoir,
                const Settings& settings = {0})
     : m_id(id)
     , m_sensor(sensor)
     , m_valve(valve)
     , m_pump(pump)
+    , m_reservoir(reservoir)
     , m_settings(settings)
 
     , m_state(StateIdle)
@@ -159,6 +163,8 @@ public:
     /** Circuit is triggered but is waiting until busy hardware gets ready, e.g. sensors */
     StateWaitSensor,
     StateSense,
+    StateWaitReservoir,
+    StateSenseReservoir,
     StateWaitPump,
     StatePump,
     StateSoak
@@ -191,43 +197,65 @@ public:
         break;
       case StateWaitSensor:
         if (m_sensor.getState() == Sensor::StateIdle) {
+          m_sensor.enable();
           m_state = StateSense;
           Serial.println("Water state: Sensing");
         }
         break;
       case StateSense:
         m_sensor.run();
-        switch (m_sensor.getState()) {
-          case Sensor::StateIdle:
-            m_sensor.enable();
-            break;
-          case Sensor::StatePrepare:
-            break;
-          case Sensor::StateReady:
-            m_currentHumidity = m_sensor.read();
-            m_sensor.disable();
-            Serial.print("Humidity: ");
-            Serial.println(m_currentHumidity);
-            /* The first time we check if the soil is dry.
-             * After watering we check if it's wet -- so we
-             * have a little hysteresis here.
-             */
-            if ((m_iterations == 0 and m_currentHumidity <= m_settings.m_threshDry) or
-                (m_iterations  > 0 and m_currentHumidity <= m_settings.m_threshWet))
-            {
-              if (not m_pump.isEnabled()) {
-                m_valve.open();
-                m_pump.enable();
-                m_state = StatePump;
-                Serial.println("Water state: Watering");
-              } else {
-                m_state = StateWaitPump;
-              }
+        if (m_sensor.getState() == Sensor::StateReady) {
+          m_currentHumidity = m_sensor.read();
+          m_sensor.disable();
+          Serial.print("Humidity: ");
+          Serial.println(m_currentHumidity);
+          /* The first time we check if the soil is dry.
+           * After watering we check if it's wet -- so we
+           * have a little hysteresis here.
+           */
+          if ((m_iterations == 0 and m_currentHumidity <= m_settings.m_threshDry) or
+              (m_iterations  > 0 and m_currentHumidity <= m_settings.m_threshWet))
+          {
+            if (m_settings.m_threshReservoir == 0) {
+              Serial.println("reservoir threshold disabled.");
+              m_state = StateWaitPump;
             } else {
-              m_state = StateIdle;
-              Serial.println("Water state: Idle");
+              m_state = StateWaitReservoir;
             }
-            break;
+          } else {
+            m_state = StateIdle;
+            Serial.println("Water state: Idle");
+          }
+        }
+        break;
+      case StateWaitReservoir:
+        if (m_reservoir.getState() == Sensor::StateIdle) {
+          m_reservoir.enable();
+          m_state = StateSenseReservoir;
+          Serial.println("Water state: Sensing reservoir");
+        }
+        break;
+      case StateSenseReservoir:
+        m_reservoir.run();
+        if (m_reservoir.getState() == Sensor::StateReady) {
+          auto fill = m_reservoir.read();
+          m_reservoir.disable();
+          Serial.print("Fill: ");
+          Serial.println(fill);
+          if (fill < m_settings.m_threshReservoir) {
+            m_state = StateIdle;
+            Serial.println("Water state: reservoir empty -- now idle");
+
+            // TODO: this is the point to generate an alarm
+            
+          } else {
+            Serial.print("Water state: reservoir ok: ");
+            Serial.print(fill);
+            Serial.print(" > ");
+            Serial.println(m_settings.m_threshReservoir);
+            m_state = StateWaitPump;
+            Serial.println("Water state: Wait pump");
+          }
         }
         break;
       case StateWaitPump:
@@ -264,8 +292,13 @@ public:
   void reset()
   {
     if (m_state != StateIdle) {
-      if (m_state != StateWaitSensor) {
+      if (m_state == StateSense) {
         m_sensor.disable();
+      }
+      if (m_state == StateSenseReservoir) {
+        m_reservoir.disable();
+      }
+      if (m_state == StatePump) {
         m_pump.disable();
         m_valve.close();
       }
@@ -280,12 +313,15 @@ public:
   uint8_t getThreshDry()   const { return m_settings.m_threshDry; }
   uint8_t getThreshWet()   const { return m_settings.m_threshWet; }
   uint8_t getSoakMinutes() const { return m_settings.m_soakMinutes; }
-  uint8_t getHumidity()    const { return m_currentHumidity; }
+  uint8_t getThreshReservoir() const { return m_settings.m_threshReservoir; }
 
   void setPumpSeconds(uint8_t s) { m_settings.m_pumpSeconds = s; }
   void setThreshDry(uint8_t t)   { m_settings.m_threshDry = t; }
   void setThreshWet(uint8_t t)   { m_settings.m_threshWet = t; }
   void setSoakMinutes(uint8_t m) { m_settings.m_soakMinutes = m; }
+  void setThreshReservoir(uint8_t t) { m_settings.m_threshReservoir = t; }
+
+  uint8_t getHumidity()    const { return m_currentHumidity; }
 
   const Settings& getSettings() const { return m_settings; }
   void setSettings(const Settings& settings) { m_settings = settings; }
@@ -309,7 +345,10 @@ public:
   {
     return m_pump;
   }
-
+  Sensor& getReservoir()
+  {
+    return m_reservoir;
+  }
 private:
   /** Watering circuit ID */
   unsigned int m_id;
@@ -318,7 +357,8 @@ private:
   Sensor& m_sensor;
   Valve& m_valve;
   Pump& m_pump;
-
+  Sensor& m_reservoir;
+  
   /* State variables */
   State m_state;
   /* TODO: we sould count iterations here instead of detecting the first iteration only and set a maximum number such that we could detect issues when a circuits waters forever */
@@ -327,16 +367,6 @@ private:
   unsigned long m_soakStartMillis;
 
   /* TODO: statistics */
-};
-
-/** Reservoir base class.
- *
- */
-class Reservoir
-  : public virtual Sensor
-{
-public:
-private:
 };
 
 

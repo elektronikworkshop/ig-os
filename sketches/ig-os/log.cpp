@@ -4,6 +4,7 @@
 
 Logger::Logger(WaterCircuit& circuit, unsigned int intervalMinutes)
   : m_circuit(circuit)
+  , m_state(StateIdle)
   , m_intervalMinutes(intervalMinutes)
   , m_previousLogTime(0)
 { }
@@ -11,47 +12,83 @@ Logger::Logger(WaterCircuit& circuit, unsigned int intervalMinutes)
 void
 Logger::run()
 {
-  /* log only if watering circuit is enabled */
-  if (not m_circuit.isEnabled() or not isDue()) {
-    return;
+  switch (m_state) {
+    case StateIdle:
+      /* log only if watering circuit is enabled */
+      if (m_circuit.isEnabled() and isDue()) {
+        m_state = StateWaitSensor;
+        Serial.println("Logger started");
+      }
+      break;
+    case StateWaitSensor:
+    {
+      Sensor& sensor = m_circuit.getSensor();
+      if (sensor.getState() == Sensor::StateIdle) {
+        sensor.enable();
+        m_state = StateSetupSensor;
+      }
+      break;
+    }
+    case StateSetupSensor:
+    {
+      Sensor& sensor = m_circuit.getSensor();
+      sensor.run();
+      if (sensor.getState() == Sensor::StateReady) {
+        m_humidity = sensor.read();
+        sensor.disable();
+        m_state = StateWaitReservoir;
+      }
+      break;
+    }
+    case StateWaitReservoir:
+    {
+      Sensor& reservoir = m_circuit.getReservoir();
+      if (reservoir.getState() == Sensor::StateIdle) {
+        reservoir.enable();
+        m_state = StateSetupReservoir;
+      }
+      break;
+    }
+    case StateSetupReservoir:
+    {
+      Sensor& reservoir = m_circuit.getReservoir();
+      reservoir.run();
+      if (reservoir.getState() == Sensor::StateReady) {
+        m_reservoir = reservoir.read();
+        reservoir.disable();
+
+        if (log(m_humidity, m_reservoir, m_circuit.getPump().getTotalEnabledSeconds())) {
+          Serial << "logged data for circuit " << m_circuit.getId() << " at " << timeClient.getFormattedTime() << "\n";
+        }
+
+        m_previousLogTime = millis();
+
+        m_state = StateIdle;
+      }
+      break;
+    }
   }
-
-  /* if sensor is active we postpone logging until we are able to
-   * get fresh data. The trigger condition will remain true.
-   */
-  Sensor& sensor = m_circuit.getSensor();
-  if (sensor.getState() != Sensor::StateIdle) {
-    return;
-  }
-
-  sensor.enable();
-  while (sensor.getState() != Sensor::StateReady) {
-    delay(500);
-    sensor.run();
-  }
-  float humidity = sensor.read();
-  sensor.disable();
-
-  log(humidity, m_circuit.getPump().getTotalEnabledSeconds());
-
-  Serial << "logged data for circuit " << m_circuit.getId() << " at " << timeClient.getFormattedTime() << "\n";
-
-  m_previousLogTime = millis();
 }
+
+// TODO: reset logger as reset in water circuit
 
 void
 Logger::trigger()
 {
-  m_previousLogTime = millis() - m_intervalMinutes * 1000UL;
+  /* Shifting previous log time into past such that it triggers the logger */
+  m_previousLogTime = millis() - (unsigned long)m_intervalMinutes * 60UL * 1000UL;
 }
 
 bool
 Logger::isDue() const
 {
-  return millis() - m_previousLogTime > (unsigned long)m_intervalMinutes * 60UL * 1000UL;
+  bool due = millis() - m_previousLogTime > (unsigned long)m_intervalMinutes * 60UL * 1000UL;  
+  return due;
 }
 
 #include "ThingSpeak.h"
+
+// TODO: handle network disconnect
 
 ThingSpeakLogger::ThingSpeakLogger(WaterCircuit& circuit,
                                    unsigned int intervalMinutes,
@@ -69,11 +106,12 @@ ThingSpeakLogger::begin()
 }
 
 bool
-ThingSpeakLogger::log(float humidity, unsigned long pumpSeconds)
+ThingSpeakLogger::log(uint8_t humidity, uint8_t reservoir, unsigned long pumpSeconds)
 {
   if (m_channelId) {
     ThingSpeak.setField((unsigned int)1, humidity);
-    ThingSpeak.setField((unsigned int)2, static_cast<long>(pumpSeconds));
+    ThingSpeak.setField((unsigned int)2, reservoir);
+    ThingSpeak.setField((unsigned int)3, static_cast<long>(pumpSeconds));
     ThingSpeak.writeFields(m_channelId, m_writeApiKey);
 
     return true;

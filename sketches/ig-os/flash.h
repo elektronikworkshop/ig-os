@@ -20,18 +20,10 @@ struct FlashDataSet // FLASH backed data
   char                    wifiPass[MaxSsidPassLen];
 
   /* TODO: instead of copying this stuff around and have it redundant in memory we could map it directly into those objects by reference */
-  WaterCircuit::Settings  waterCircuitSettings[NumWaterCircuits];
+  WaterCircuit::Settings                 waterCircuitSettings[NumWaterCircuits];
   SchedulerTime::SchedulerTimeStruct     schedulerTimes[NumSchedulerTimes];
 
-  uint8_t  reserved[512
-    - sizeof(uint16_t)
-    - sizeof(uint16_t)
-    - sizeof(char) * MaxSsidNameLen
-    - sizeof(char) * MaxSsidPassLen
-    - sizeof(WaterCircuit::Settings) * NumWaterCircuits
-    - sizeof(SchedulerTime::SchedulerTimeStruct) * NumSchedulerTimes
-    ];  /* keep the struct at total 512 bytes */
-
+  uint8_t  reserved[32];
   
 #if 0
   uint16_t coolTemp[2]; // cool to temp *10 low/high
@@ -72,9 +64,8 @@ extern FlashDataSet flashDataSet;
 class FlashMemory
 {
 public:
-  FlashMemory();
+  void begin();
   void update(void);
-  void load();
 private:
   static uint16_t fletcher16( uint8_t* data, int count);
 };

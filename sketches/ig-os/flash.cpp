@@ -1,20 +1,33 @@
 #include "flash.h"
 #include <EEPROM.h>
 
-FlashDataSet flashDataSet = { sizeof(FlashDataSet), 0xAAAA,
+FlashDataSet flashDataSet =
+{
+  sizeof(FlashDataSet),
+  0xAAAA,
   "",  // saved SSID (place your SSID and password here)
   "",  // router password
 
-  {{ 30,  /* pump */
-    150, /*  dry 0.6 * 255 -- better 0.7 * 255! */
-    200, /*  wet 0.8 * 255 */
-      5},
-   {0}, {0}, {0}
+  {{ 30,  /* pump seconds                       */
+    150,  /* dry 0.6 * 255 -- better 0.7 * 255! */
+    200,  /* wet 0.8 * 255                      */
+      5,  /* soak minutes                       */
+      0}, /* reservoir threshold                */
+   {0},
+   {0},
+   {0}
   },// WaterCircuit::Settings waterCircuitSettings[NumWaterCircuits];
 
-  {{6, 0}, {8, 0}, {SchedulerTime::InvalidHour, 0}, {SchedulerTime::InvalidHour, 0}, {SchedulerTime::InvalidHour, 0}, {20, 0}, {22, 0}},
+  {{6, 0},
+   {8, 0},
+   {SchedulerTime::InvalidHour, 0},
+   {SchedulerTime::InvalidHour, 0},
+   {SchedulerTime::InvalidHour, 0},
+   {20, 0},
+   {22, 0}
+  },
   
-  {0}
+  {0} /* reserved */
 
 #if 0
   {820, 850},   // 79.0, 82.0 default cool temps
@@ -52,34 +65,47 @@ FlashDataSet flashDataSet = { sizeof(FlashDataSet), 0xAAAA,
 
 FlashMemory flashMemory;
 
-FlashMemory::FlashMemory()
+void
+FlashMemory::begin()
 {
   EEPROM.begin(512);
 
   uint8_t data[sizeof(FlashDataSet)];
   uint16_t *pwTemp = (uint16_t *)data;
 
-  int addr = 0;
-  for(int i = 0; i < sizeof(FlashDataSet); i++, addr++) {
-    data[i] = EEPROM.read( addr );
+  for(int i = 0; i < sizeof(FlashDataSet); i++) {
+    data[i] = EEPROM.read(i);
   }
 
+  Serial.print("size: ");
+  Serial.print(pwTemp[0]);
+  Serial.print(" ");
+  Serial.println(sizeof(FlashDataSet));
+  
   if(pwTemp[0] != sizeof(FlashDataSet)) {
     return; // revert to defaults if struct size changes
   }
+  
   uint16_t sum = pwTemp[1];
-  pwTemp[1] = 0;
-  pwTemp[1] = fletcher16(data, sizeof(FlashDataSet) );
+  pwTemp[1] = 0;  // reset sum in data before computing new checksum
+  pwTemp[1] = fletcher16(data, sizeof(FlashDataSet));
+
+  Serial.print("sum: ");
+  Serial.print(sum);
+  Serial.print(" ");
+  Serial.println(pwTemp[1]);
+
   if(pwTemp[1] != sum) {
     return; // revert to defaults if sum fails
   }
+  
   memcpy(&flashDataSet, data, sizeof(FlashDataSet) );
 }
 
 void FlashMemory::update() // write the settings if changed
 {
   uint16_t old_sum = flashDataSet.sum;
-  flashDataSet.sum = 0;
+  flashDataSet.sum = 0; // reset sum in data before computing new checksum
   flashDataSet.sum = fletcher16((uint8_t*)&flashDataSet, sizeof(FlashDataSet));
 
   if(old_sum == flashDataSet.sum) {
@@ -87,11 +113,10 @@ void FlashMemory::update() // write the settings if changed
     return;
   }
 
-  uint16_t addr = 0;
   uint8_t *pData = (uint8_t *)&flashDataSet;
-  for(int i = 0; i < sizeof(FlashDataSet); i++, addr++)
+  for(int i = 0; i < sizeof(FlashDataSet); i++)
   {
-    EEPROM.write(addr, pData[i] );
+    EEPROM.write(i, pData[i]);
   }
   EEPROM.commit();
 }
@@ -110,18 +135,4 @@ uint16_t FlashMemory::fletcher16( uint8_t* data, int count)
    return (sum2 << 8) | sum1;
 }
 
-void FlashMemory::load()
-{
-  /* load watering cuircuit settings from flash */
-  for (int i = 0; i < NumWaterCircuits; i++) {
-      WaterCircuit* w = circuits[i];
-      w->setSettings(flashDataSet.waterCircuitSettings[i]);
-  }
-
-  /* load scheduler settings from flash */
-  for (int i = 0; i < NumSchedulerTimes; i++) {
-    SchedulerTime t(flashDataSet.schedulerTimes[i]);
-    *schedulerTimes[i] = t;
-  }
-}
 

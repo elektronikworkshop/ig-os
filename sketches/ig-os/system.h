@@ -59,7 +59,6 @@ const unsigned int NumWaterCircuits = 4;
 
 extern WaterCircuit* circuits[NumWaterCircuits + 1];
 
-
 class SchedulerTime
 {
 public:
@@ -131,11 +130,6 @@ const unsigned int NumSchedulerTimes = 8;
 extern SchedulerTime* schedulerTimes[NumSchedulerTimes + 1];
 
 bool wateringDue();
-
-
-const unsigned int NumReservoirs = 1;
-
-extern Reservoir* reservoirs[NumReservoirs + 1];
 
 
 extern Logger* loggers[NumWaterCircuits + 1];

@@ -17,6 +17,8 @@ void setup()
   Serial.begin(115200);
   Serial.println("");
 
+  flashMemory.begin();
+  
   network.begin();
   timeClient.begin();
 
@@ -29,9 +31,9 @@ void setup()
     (*w)->begin();
   }
 
-  loggerBegin();
+  initSettings();
 
-  flashMemory.load();
+  loggerBegin();
 
   pinMode(LED_BUILTIN, OUTPUT);
 }
@@ -67,9 +69,9 @@ void loop()
           (*c)->run();
         }
       }
-      if (network.isConnected()) {
-        loggerRun();
-      }
+
+      loggerRun();
+
       break;
     }
     
@@ -83,5 +85,20 @@ void loop()
     led = led == HIGH ? LOW : HIGH;
     digitalWrite(LED_BUILTIN, led);
   }  
+}
+
+
+void initSettings()
+{
+  /* load watering cuircuit settings from flash */
+  for (int i = 0; i < NumWaterCircuits; i++) {
+      WaterCircuit* w = circuits[i];
+      w->setSettings(flashDataSet.waterCircuitSettings[i]);
+  }
+
+  /* load scheduler settings from flash */
+  for (int i = 0; i < NumSchedulerTimes; i++) {
+    *schedulerTimes[i] = SchedulerTime(flashDataSet.schedulerTimes[i]);
+  }
 }
 

@@ -93,13 +93,15 @@ void cmdHelp()
     "  change settings and state of circuit with ID <id>\n"
     "  <param> must be one of:\n"
     "    pump <seconds>\n"
-    "      set pump time in seconds\n"
+    "      set pump time in seconds (0: watering circuit off)\n"
     "    soak <minutes>\n"
     "      set soak time in minutes\n"
     "    dry <thresh>\n"
     "      set dry threshold, range 0 .. 255\n"
     "    wet <thresh>\n"
     "      set wet threshold, range 0 .. 255\n"
+    "    res <thresh>\n"
+    "      set reservoir threshold, range 0 .. 255 (0: reservoir off)\n"
     "c.log [id]\n"
     "  transmit current data to remote logger. if no ID is provided, all info of all circuits will be logged\n"
     "SCHEDULER\n"
@@ -205,6 +207,38 @@ void cmdCircuitRead()
   Serial << "humidity of " << id << " is " << h << "/255\n";
 }
 
+// TODO: mostly same code as "read" -> combine somehow
+void cmdCircuitReservoir()
+{
+  int id;
+  WaterCircuit* w;
+  if (not cmdParseId(id, w)) {
+    Serial << "invalid index\n";
+    return;
+  }
+  
+  Sensor& r = w->getReservoir();
+  
+  if (r.getState() != Sensor::StateIdle) {
+    Serial << "reservoir sensor is currently busy, try again later\n";
+    return;
+  }
+  
+  r.enable();
+  while (r.getState() != Sensor::StateReady) {
+    delay(500);
+    r.run();
+    spi.run();
+    adc.run();
+    Serial<<"state: "<<r.getState()<<"\n";
+  }
+  Serial << "reading adc result... \n";
+  auto f = r.read();
+  r.disable();
+
+  Serial << "reservoir fill is " << f << "/255\n";
+}
+
 void cmdCircuitPump()
 {
   if (systemMode.getMode() != SystemMode::Manual) {
@@ -284,11 +318,12 @@ void prtCircuitInfo(WaterCircuit* w, int id)
 {
   Serial
     <<  "on-board circuit " << id << ":\n"
-    <<  "  pump time  " << w->getPumpSeconds() / 1000 << " s\n"
-    <<  "  dry thresh " << w->getThreshDry() << "\n"
-    <<  "  wet thresh " << w->getThreshWet() << "\n"
-    <<  "  soak time  " << w->getSoakMinutes() / 1000 << " s\n"
-    <<  "  last read humidity  " << int(w->getHumidity() * 100) << " %\n"
+    <<  "           pump time  " << w->getPumpSeconds() << " s\n"
+    <<  "          dry thresh  " << w->getThreshDry() << "\n"
+    <<  "          wet thresh  " << w->getThreshWet() << "\n"
+    <<  "           soak time  " << w->getSoakMinutes() << " m\n"
+    <<  "    reservoir thresh  " << w->getThreshReservoir() << "\n"
+    <<  "  last read humidity  " << w->getHumidity() << "\n"
     ;
 }
 
@@ -362,6 +397,15 @@ void cmdCircuitSet()
     }
     w->setThreshWet(t);
     Serial << "wet threshold set to " << t << "\n";
+    return;
+  } else if (strcmp(arg, "res") == 0) {
+    int t;
+    if (not cmdParseInt(t, 0, 255)) {
+      Serial << "reservoir threshold must be between 0 and 255\n";
+      return;
+    }
+    w->setThreshReservoir(t);
+    Serial << "reservoir threshold set to " << t << "\n";
     return;
   } else {
     Serial << "invalid parameter \"" << arg << "\"\n";
@@ -461,30 +505,6 @@ void cmdSchedulerSet()
   *schedulerTimes[index - 1] = SchedulerTime(h, m);
 }
 
-void cmdReservoirRead()
-{
-  Reservoir& r = *reservoirs[0];
-  
-  if (r.getState() != Sensor::StateIdle) {
-    Serial << "reservoir sensor is currently busy, try again later\n";
-    return;
-  }
-  
-  r.enable();
-  while (r.getState() != Sensor::StateReady) {
-    delay(500);
-    r.run();
-    spi.run();
-    adc.run();
-    Serial<<"state: "<<r.getState()<<"\n";
-  }
-  Serial << "reading adc result... \n";
-  auto f = r.read();
-  r.disable();
-
-  Serial << "reservoir fill is " << f << "/255\n";
-}
-
 void cmdNetworkSsid()
 {
   const char* arg = sCmd.next();
@@ -541,6 +561,7 @@ void cliInit()
   sCmd.addCommand("mode",   cmdMode);
   sCmd.addCommand("c.trig", cmdCircuitTrigger);
   sCmd.addCommand("c.read", cmdCircuitRead);
+  sCmd.addCommand("c.res",  cmdCircuitReservoir);
   sCmd.addCommand("c.pump", cmdCircuitPump);
   sCmd.addCommand("c.valve", cmdCircuitValve);
   sCmd.addCommand("c.info", cmdCircuitInfo);
@@ -549,8 +570,6 @@ void cliInit()
 
   sCmd.addCommand("s.info", cmdSchedulerInfo);
   sCmd.addCommand("s.set",  cmdSchedulerSet);
-
-  sCmd.addCommand("r.read", cmdReservoirRead);
 
   sCmd.addCommand("n.ssid",    cmdNetworkSsid);
   sCmd.addCommand("n.pass",    cmdNetworkPass);

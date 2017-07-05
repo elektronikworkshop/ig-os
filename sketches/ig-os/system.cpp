@@ -151,16 +151,17 @@ OnboardSensor sensor0(Adc::ChSensor1);
 OnboardSensor sensor1(Adc::ChSensor2);
 OnboardSensor sensor2(Adc::ChSensor3);
 OnboardSensor sensor3(Adc::ChSensor4);
+OnboardSensor reservoir(Adc::ChReservoir);
 
 OnboardValve valve0(Spi::Valve1);
 OnboardValve valve1(Spi::Valve2);
 OnboardValve valve2(Spi::Valve3);
 OnboardValve valve3(Spi::Valve4);
 
-WaterCircuit circuit0(0, sensor0, valve0, pump);
-WaterCircuit circuit1(1, sensor1, valve1, pump);
-WaterCircuit circuit2(2, sensor2, valve2, pump);
-WaterCircuit circuit3(3, sensor3, valve3, pump);
+WaterCircuit circuit0(0, sensor0, valve0, pump, reservoir);
+WaterCircuit circuit1(1, sensor1, valve1, pump, reservoir);
+WaterCircuit circuit2(2, sensor2, valve2, pump, reservoir);
+WaterCircuit circuit3(3, sensor3, valve3, pump, reservoir);
 
 WaterCircuit* circuits[NumWaterCircuits + 1] = {&circuit0, &circuit1, &circuit2, &circuit3, NULL};
 
@@ -198,23 +199,7 @@ bool wateringDue()
 }
 
 
-class OnboardReservoir
-  : public Reservoir
-  , public OnboardSensor  
-{
-public:
-  OnboardReservoir()
-    : OnboardSensor(Adc::ChReservoir)
-  {}
-};
-
-OnboardReservoir reservoir;
-
-Reservoir* reservoirs[NumReservoirs + 1] = {&reservoir, NULL};
-
-
-
-ThingSpeakLogger thingSpeakLogger0(circuit0, 60);//, 291734, "GJESUISMQX7ZDJCP");
+ThingSpeakLogger thingSpeakLogger0(circuit0, 60, 297692, "VIJI2295HQ5TA49D");//, 291734, "GJESUISMQX7ZDJCP");
 ThingSpeakLogger thingSpeakLogger1(circuit1, 60);
 ThingSpeakLogger thingSpeakLogger2(circuit2, 60);
 ThingSpeakLogger thingSpeakLogger3(circuit3, 60);
