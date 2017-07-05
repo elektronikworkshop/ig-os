@@ -14,8 +14,7 @@ Logger::run()
 {
   switch (m_state) {
     case StateIdle:
-      /* log only if watering circuit is enabled */
-      if (m_circuit.isEnabled() and isDue()) {
+      if (isDue()) {
         m_state = StateWaitSensor;
         Serial.println("Logger started");
       }
@@ -82,8 +81,10 @@ Logger::trigger()
 bool
 Logger::isDue() const
 {
-  bool due = millis() - m_previousLogTime > (unsigned long)m_settings.m_intervalMinutes * 60UL * 1000UL;  
-  return due;
+  if (m_settings.m_intervalMinutes == 0 or not m_circuit.isEnabled()) {
+    return false;
+  }
+  return millis() - m_previousLogTime > (unsigned long)m_settings.m_intervalMinutes * 60UL * 1000UL;
 }
 
 #include "ThingSpeak.h"
