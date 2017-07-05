@@ -91,7 +91,7 @@ Logger::isDue() const
 // TODO: handle network disconnect
 
 ThingSpeakLogger::ThingSpeakLogger(WaterCircuit& circuit,
-                                   Settings& settings)
+                                   TslSettings& settings)
   : Logger(circuit, settings.m_settings)
 { }
 
@@ -104,11 +104,11 @@ ThingSpeakLogger::begin()
 bool
 ThingSpeakLogger::log(uint8_t humidity, uint8_t reservoir, unsigned long pumpSeconds)
 {
-  if (getSettings().m_channelId) {
+  if (getTslSettings().m_channelId) {
     ThingSpeak.setField((unsigned int)1, humidity);
     ThingSpeak.setField((unsigned int)2, reservoir);
     ThingSpeak.setField((unsigned int)3, static_cast<long>(pumpSeconds));
-    ThingSpeak.writeFields(getSettings().m_channelId, getSettings().m_writeApiKey);
+    ThingSpeak.writeFields(getTslSettings().m_channelId, getTslSettings().m_writeApiKey);
 
     return true;
   }

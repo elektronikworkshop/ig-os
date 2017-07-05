@@ -9,20 +9,20 @@
 
 #include "system.h"
 
-const unsigned int MaxSsidNameLen = 64;
-const unsigned int MaxSsidPassLen = 64;
+const unsigned int MaxSsidNameLen = 63; // excluding zero termination
+const unsigned int MaxSsidPassLen = 63; // excluding zero termination
 
 struct FlashDataSet // FLASH backed data
 {
   uint16_t                size;          // if size changes, use defaults
   uint16_t                sum;           // if sum is different from memory struct, write
-  char                    wifiSsid[MaxSsidNameLen];
-  char                    wifiPass[MaxSsidPassLen];
+  char                    wifiSsid[MaxSsidNameLen + 1];
+  char                    wifiPass[MaxSsidPassLen + 1];
 
   /* TODO: instead of copying this stuff around and have it redundant in memory we could map it directly into those objects by reference */
   WaterCircuit::Settings     waterCircuitSettings[NumWaterCircuits];
   SchedulerTime::Time        schedulerTimes[NumSchedulerTimes];
-  ThingSpeakLogger::Settings thingSpeakLoggerSettings[NumWaterCircuits];
+  ThingSpeakLogger::TslSettings thingSpeakLoggerSettings[NumWaterCircuits];
   
   uint8_t  reserved[32];
   

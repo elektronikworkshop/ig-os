@@ -29,14 +29,20 @@ public:
   void trigger();
   bool isDue() const;
 
-  Settings& getSettings()
+  const Settings& getSettings() const
   {
     return m_settings;
   }
+  void setIntervalMinutes(unsigned int intervalMinutes)
+  {
+    m_settings.m_intervalMinutes = intervalMinutes;
+  }
+protected:
+  Settings& m_settings;
+
 private:
   WaterCircuit& m_circuit;
   State m_state;
-  Settings& m_settings;
   unsigned long m_previousLogTime;
 
   uint8_t m_humidity;
@@ -50,7 +56,7 @@ class ThingSpeakLogger
 {
 public:
   static const int MaxWriteApiKeyLen = 31;
-  struct Settings
+  struct TslSettings
   {
     Logger::Settings m_settings;
     unsigned long m_channelId;
@@ -61,14 +67,26 @@ public:
    * ThingSpeak channel ID, if set to zero (0) this logger is disabled.
    */
   ThingSpeakLogger(WaterCircuit& circuit,
-                   Settings& settings);
+                   TslSettings& settings);
   virtual void begin();
   virtual bool log(uint8_t humidity, uint8_t reservoir, unsigned long pumpSeconds);
 
-  Settings& getSettings()
+  const TslSettings& getTslSettings() const
   {
     /* Danger, danger! Struct address hack: address of first struct member is the address of the enclosing struct. */
-    return *reinterpret_cast<Settings*>(&Logger::getSettings());
+    return *reinterpret_cast<const TslSettings*>(&m_settings);
+  }
+
+  void setChannelId(unsigned long channelId)
+  {
+    TslSettings& s = *reinterpret_cast<TslSettings*>(&m_settings);
+    s.m_channelId = channelId;
+  }
+  void setWriteApiKey(const char* key)
+  {
+    TslSettings& s = *reinterpret_cast<TslSettings*>(&m_settings);
+    
+    strncpy(s.m_writeApiKey, key, MaxWriteApiKeyLen);
   }
 private:
   WiFiClient  m_client;

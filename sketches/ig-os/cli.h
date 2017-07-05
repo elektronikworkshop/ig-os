@@ -39,6 +39,20 @@ bool cmdParseInt(int& num, int min, int max)
   return true;
 }
 
+bool cmdParseLong(long& num, long min, long max)
+{
+  char* arg = sCmd.next();
+  if (arg == NULL) {
+    return false;
+  }
+  long _num = atol(arg);
+  if (_num < min or _num > max) {
+    return false;
+  }
+  num = _num;
+  return true;
+}
+
 bool cmdParseFloat(float& num, float min, float max)
 {
   char* arg = sCmd.next();
@@ -86,7 +100,7 @@ void cmdHelp()
     "  run pump of circuit with ID <id> for <seconds> seconds\n"
     "c.info [id]\n"
     "  display settings and state of circuit with ID [id]\n"
-    "  if no [id] is provided the info is printed for all circuits\n"
+    "  if no [id] is provided the info for all circuits is printed\n"
     "c.set <id> <param>\n"
     "  change settings and state of circuit with ID <id>\n"
     "  <param> must be one of:\n"
@@ -101,7 +115,21 @@ void cmdHelp()
     "    res <thresh>\n"
     "      set reservoir threshold, range 0 .. 255 (0: reservoir off)\n"
     "c.log [id]\n"
-    "  transmit current data to remote logger. if no ID is provided, all info of all circuits will be logged\n"
+    "LOGGER\n"
+    "l.info [id]\n"
+    "  display logging configuration of circuit with ID [id]\n"
+    "  if no [id] is provided the configuration for for all circuits is printed\n"
+    "l.trig [id]\n"
+    "  trigger transmission of current data to remote logger. if no ID is provided, the data of all circuits is transmitted\n"
+    "l.set <id> <param>\n"
+    "  configure the logging backend for circuit with ID <id>\n"
+    "  <param> must be one of:\n"
+    "    interval <minutes>\n"
+    "      the logging interval in minutes\n"
+    "    chid <id>\n"
+    "      the ThingSpeak channel ID (integer number)\n"
+    "    key <key>\n"
+    "      the ThingSpeak channel write API key (character string)\n"
     "SCHEDULER\n"
     "s.info\n"
     "  print scheduler configuration\n"
@@ -316,12 +344,14 @@ void p(char *fmt, ... )
 void prtCircuitInfo(WaterCircuit* w, int id)
 {
   Serial
-    <<  "on-board circuit " << id << ":\n"
+    <<  "on-board circuit [" << id << "]:"
+    << (w->getPumpSeconds() == 0 ?
+        " off\n" :  " active\n")    
     <<  "           pump time  "; p("%3u s\n", w->getPumpSeconds());   Serial
     <<  "          dry thresh  "; p("%3u\n", w->getThreshDry());       Serial
     <<  "          wet thresh  "; p("%3u\n",  w->getThreshWet());      Serial
     <<  "           soak time  "; p("%3u m\n", w->getSoakMinutes());   Serial
-    <<  "    reservoir thresh  "; p("%3u\n", w->getThreshReservoir()); Serial
+    <<  "    reservoir thresh  "; w->getThreshReservoir() == 0 ? p("off\n") : p("%3u\n", w->getThreshReservoir()); Serial
     <<  "  last read humidity  "; p("%3u\n", w->getHumidity());
 }
 
@@ -405,7 +435,7 @@ void cmdCircuitSet()
   flashMemory.update();
 }
 
-void cmdCircuitLog()
+void cmdLogTrigger()
 {
   int id;
 
@@ -418,6 +448,91 @@ void cmdCircuitLog()
 
   Logger* l = loggers[id];
   l->trigger();
+}
+
+void printLoggerInfo(int id)
+{
+  /* Attention: as soon as we have different loggers we have to make sure that we use the right types! */
+  ThingSpeakLogger* tsl = static_cast<ThingSpeakLogger*>(loggers[id - 1]);
+  auto& s = tsl->getTslSettings();
+  
+  Serial
+    << "ThingSpeak Logger [" << id << "]: "
+    << (s.m_settings.m_intervalMinutes == 0 or s.m_channelId == 0 ?
+        " off\n" :  " active\n")
+    << "       interval  " << s.m_settings.m_intervalMinutes << " m\n"
+    << "     channel ID  " << s.m_channelId << "\n"
+    << "  write API key  \"" << s.m_writeApiKey << "\"\n";
+}
+
+void cmdLogInfo()
+{
+  int id;
+
+  if (not cmdParseInt(id, 1, NumWaterCircuits)) {
+    for (id = 1; id <= NumWaterCircuits; id++) {
+      printLoggerInfo(id);
+      if (id != NumWaterCircuits) {
+        Serial << "\n";
+      }
+    }
+    return;
+  }
+
+  printLoggerInfo(id);
+}
+
+#include <climits>
+
+void cmdLogSet()
+{
+  int id;
+
+  if (not cmdParseInt(id, 1, NumWaterCircuits)) {
+    Serial << "invalid index\n";
+    return;
+  }
+
+    /* Attention: as soon as we have different loggers we have to make sure that we use the right types! */
+  ThingSpeakLogger* tsl = static_cast<ThingSpeakLogger*>(loggers[id - 1]);
+
+  char* arg = sCmd.next();
+  if (arg == NULL) {
+    Serial << "no parameter\n";
+    return;
+  }
+
+  if (strcmp(arg, "interval") == 0) {
+    int m;
+    if (not cmdParseInt(m, 0, 1440)) {
+      Serial << "interval minutes must be between 0 and 1440 (24h)\n";
+      return;
+    }
+    tsl->setIntervalMinutes(m);
+    Serial << "log interval set to " << m << " minutes\n";
+  } else if (strcmp(arg, "chid") == 0) {
+    long chid;
+    if (not cmdParseLong(chid, 0, LONG_MAX)) {
+      Serial << "channel ID must be unsigned\n";
+      return;
+    }
+    tsl->setChannelId(chid);
+    Serial << "channel ID set to " << chid << "\n";
+  } else if (strcmp(arg, "key") == 0) {
+    char* karg = sCmd.next();
+      if (karg == NULL) {
+        tsl->setWriteApiKey("");
+        Serial << "write API key set to \"\"\n";
+      } else {
+        tsl->setWriteApiKey(karg);
+        Serial << "write API key set to \"" << karg << "\"\n";
+      }
+  } else {
+    Serial << "invalid parameter \"" << arg << "\"\n";
+    return;
+  }
+
+  flashMemory.update();
 }
 
 void cmdSchedulerInfo()
@@ -518,7 +633,7 @@ void cmdNetworkSsid()
     Serial << "no wifi SSID argument\n";
     return;
   }
-  strncpy(flashDataSet.wifiSsid, arg, MaxSsidNameLen - 1);
+  strncpy(flashDataSet.wifiSsid, arg, MaxSsidNameLen);
   flashMemory.update();
 
   Serial << "wifi SSID \"" << arg << "\" stored to flash\n";
@@ -532,7 +647,7 @@ void cmdNetworkPass()
     Serial << "no wifi password argument\n";
     return;
   }
-  strncpy(flashDataSet.wifiPass, arg, MaxSsidPassLen - 1);
+  strncpy(flashDataSet.wifiPass, arg, MaxSsidPassLen);
   flashMemory.update();
 
   Serial << "wifi pass \"" << arg << "\" stored to flash\n";
@@ -571,7 +686,10 @@ void cliInit()
   sCmd.addCommand("c.valve", cmdCircuitValve);
   sCmd.addCommand("c.info",  cmdCircuitInfo);
   sCmd.addCommand("c.set",   cmdCircuitSet);
-  sCmd.addCommand("c.log",   cmdCircuitLog);
+
+  sCmd.addCommand("l.trig",  cmdLogTrigger);
+  sCmd.addCommand("l.info",  cmdLogInfo);
+  sCmd.addCommand("l.set",   cmdLogSet);
 
   sCmd.addCommand("s.info",  cmdSchedulerInfo);
   sCmd.addCommand("s.set",   cmdSchedulerSet);
