@@ -26,6 +26,13 @@ FlashDataSet flashDataSet =
    {20, 0},
    {22, 0}
   },
+
+  /* interval (minutes), channel ID, write API key */
+  {{{0}, 0, ""},
+   {{0}, 0, ""},
+   {{0}, 0, ""},
+   {{0}, 0, ""}
+  },
   
   {0} /* reserved */
 

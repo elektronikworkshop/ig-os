@@ -2,10 +2,10 @@
 #include "log.h"
 #include "system.h"
 
-Logger::Logger(WaterCircuit& circuit, unsigned int intervalMinutes)
+Logger::Logger(WaterCircuit& circuit, Settings& settings)
   : m_circuit(circuit)
   , m_state(StateIdle)
-  , m_intervalMinutes(intervalMinutes)
+  , m_settings(settings)
   , m_previousLogTime(0)
 { }
 
@@ -76,13 +76,13 @@ void
 Logger::trigger()
 {
   /* Shifting previous log time into past such that it triggers the logger */
-  m_previousLogTime = millis() - (unsigned long)m_intervalMinutes * 60UL * 1000UL;
+  m_previousLogTime = millis() - (unsigned long)m_settings.m_intervalMinutes * 60UL * 1000UL;
 }
 
 bool
 Logger::isDue() const
 {
-  bool due = millis() - m_previousLogTime > (unsigned long)m_intervalMinutes * 60UL * 1000UL;  
+  bool due = millis() - m_previousLogTime > (unsigned long)m_settings.m_intervalMinutes * 60UL * 1000UL;  
   return due;
 }
 
@@ -91,12 +91,8 @@ Logger::isDue() const
 // TODO: handle network disconnect
 
 ThingSpeakLogger::ThingSpeakLogger(WaterCircuit& circuit,
-                                   unsigned int intervalMinutes,
-                                   const unsigned long channelId,
-                                   const char* writeApiKey)
-  : Logger(circuit, intervalMinutes)
-  , m_channelId(channelId)
-  , m_writeApiKey(writeApiKey)
+                                   Settings& settings)
+  : Logger(circuit, settings.m_settings)
 { }
 
 void
@@ -108,11 +104,11 @@ ThingSpeakLogger::begin()
 bool
 ThingSpeakLogger::log(uint8_t humidity, uint8_t reservoir, unsigned long pumpSeconds)
 {
-  if (m_channelId) {
+  if (getSettings().m_channelId) {
     ThingSpeak.setField((unsigned int)1, humidity);
     ThingSpeak.setField((unsigned int)2, reservoir);
     ThingSpeak.setField((unsigned int)3, static_cast<long>(pumpSeconds));
-    ThingSpeak.writeFields(m_channelId, m_writeApiKey);
+    ThingSpeak.writeFields(getSettings().m_channelId, getSettings().m_writeApiKey);
 
     return true;
   }

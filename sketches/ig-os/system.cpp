@@ -1,6 +1,7 @@
 #include "system.h"
 #include "adc.h"
 #include "spi.h"
+#include "flash.h"
 
 #include <WiFiUdp.h>
 
@@ -199,10 +200,10 @@ bool wateringDue()
 }
 
 
-ThingSpeakLogger thingSpeakLogger0(circuit0, 60, 297692, "VIJI2295HQ5TA49D");//, 291734, "GJESUISMQX7ZDJCP");
-ThingSpeakLogger thingSpeakLogger1(circuit1, 60);
-ThingSpeakLogger thingSpeakLogger2(circuit2, 60);
-ThingSpeakLogger thingSpeakLogger3(circuit3, 60);
+ThingSpeakLogger thingSpeakLogger0(circuit0, flashDataSet.thingSpeakLoggerSettings[0]);
+ThingSpeakLogger thingSpeakLogger1(circuit1, flashDataSet.thingSpeakLoggerSettings[1]);
+ThingSpeakLogger thingSpeakLogger2(circuit2, flashDataSet.thingSpeakLoggerSettings[2]);
+ThingSpeakLogger thingSpeakLogger3(circuit3, flashDataSet.thingSpeakLoggerSettings[3]);
 
 Logger* loggers[NumWaterCircuits + 1] =
 {

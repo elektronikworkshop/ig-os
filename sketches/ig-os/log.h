@@ -8,7 +8,11 @@
 class Logger
 {
 public:
-
+  struct Settings
+  {
+    unsigned int m_intervalMinutes;
+  };
+  
   typedef enum
   {
     StateIdle,
@@ -18,17 +22,21 @@ public:
     StateSetupReservoir,
   } State;
 
-  Logger(WaterCircuit& circuit, unsigned int intervalMinutes);
+  Logger(WaterCircuit& circuit, Settings& settings);
   virtual void begin() = 0;
   virtual bool log(uint8_t humidity, uint8_t reservoir, unsigned long pumpSeconds) = 0;
   void run();
   void trigger();
   bool isDue() const;
 
+  Settings& getSettings()
+  {
+    return m_settings;
+  }
 private:
   WaterCircuit& m_circuit;
   State m_state;
-  unsigned int m_intervalMinutes;
+  Settings& m_settings;
   unsigned long m_previousLogTime;
 
   uint8_t m_humidity;
@@ -41,19 +49,29 @@ class ThingSpeakLogger
   : public Logger
 {
 public:
+  static const int MaxWriteApiKeyLen = 31;
+  struct Settings
+  {
+    Logger::Settings m_settings;
+    unsigned long m_channelId;
+    char m_writeApiKey[MaxWriteApiKeyLen + 1];
+  };
   /**
    * @param channelId
    * ThingSpeak channel ID, if set to zero (0) this logger is disabled.
    */
   ThingSpeakLogger(WaterCircuit& circuit,
-                   unsigned int intervalMinutes,
-                   const unsigned long channelId = 0,
-                   const char* writeApiKey = NULL);
+                   Settings& settings);
   virtual void begin();
   virtual bool log(uint8_t humidity, uint8_t reservoir, unsigned long pumpSeconds);
+
+  Settings& getSettings()
+  {
+    /* Danger, danger! Struct address hack: address of first struct member is the address of the enclosing struct. */
+    return *reinterpret_cast<Settings*>(&Logger::getSettings());
+  }
 private:
   WiFiClient  m_client;
-  unsigned long m_channelId;
   const char* m_writeApiKey;
 };
 

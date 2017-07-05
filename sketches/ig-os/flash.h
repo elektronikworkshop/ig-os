@@ -22,7 +22,7 @@ struct FlashDataSet // FLASH backed data
   /* TODO: instead of copying this stuff around and have it redundant in memory we could map it directly into those objects by reference */
   WaterCircuit::Settings                 waterCircuitSettings[NumWaterCircuits];
   SchedulerTime::SchedulerTimeStruct     schedulerTimes[NumSchedulerTimes];
-
+  ThingSpeakLogger::Settings             thingSpeakLoggerSettings[NumWaterCircuits];
   uint8_t  reserved[32];
   
 #if 0
