@@ -13,6 +13,11 @@ const unsigned int SensorAdcPin   = A0;
 
 #define DefaultHostName "ew-intelliguss"
 
+#define WelcomeMessage(what) \
+  "Welcome to the Intelli-Güss " what " interface!\n" \
+  "Copyright (c) 2017 Elektronik Workshop\n"          \
+  "Type \"help\" for available commands\n"
+
 
 
 template<class T> inline Print &operator <<(Print &obj, T arg) { obj.print(arg); return obj; }

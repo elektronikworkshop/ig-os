@@ -390,15 +390,14 @@ protected:
   void prtCircuitInfo(WaterCircuit* w, int id)
   {
     m_stream
-      <<  "on-board circuit [" << id << "]:"
-      << (w->getPumpSeconds() == 0 ?
-          " off\n" :  " active\n")    
-      <<  "           pump time  "; p("%3u s\n", w->getPumpSeconds());   m_stream
-      <<  "          dry thresh  "; p("%3u\n", w->getThreshDry());       m_stream
-      <<  "          wet thresh  "; p("%3u\n",  w->getThreshWet());      m_stream
-      <<  "           soak time  "; p("%3u m\n", w->getSoakMinutes());   m_stream
-      <<  "    reservoir thresh  "; w->getThreshReservoir() == 0 ? p("off\n") : p("%3u\n", w->getThreshReservoir()); m_stream
-      <<  "  last read humidity  "; p("%3u\n", w->getHumidity());
+      <<  "on-board circuit [" << id << "]:" << (w->getPumpSeconds() == 0 ? " off\n" :  " active\n")
+      <<  "            pump time  "; p("%3u s\n", w->getPumpSeconds());   m_stream
+      <<  "           dry thresh  "; p("%3u\n", w->getThreshDry());       m_stream
+      <<  "           wet thresh  "; p("%3u\n",  w->getThreshWet());      m_stream
+      <<  "            soak time  "; p("%3u m\n", w->getSoakMinutes());   m_stream
+      <<  "     reservoir thresh  "; w->getThreshReservoir() == 0 ? p("off\n") : p("%3u\n", w->getThreshReservoir()); m_stream
+      <<  "   last read humidity  "; p("%3u\n", w->getHumidity()); m_stream // the sensor should cache this
+      <<  "accumulated pump time  " << w->getPump().getTotalEnabledSeconds() << " s\n";
   }
   
   void cmdCircuitInfo()
@@ -887,9 +886,7 @@ void telnetRun()
         }
         serverClients[i] = server.available();
         Serial << "New telnet client at slot " << Serial.println(i);
-        serverClients[i] << "Welcome to the Intelli-Güss telnet interface!\n";
-        serverClients[i] << "Copyright (c) 2017 Elektronik Workshop\n";
-        serverClients[i] << "Type \"help\" for available commands\n";
+        serverClients[i] << WelcomeMessage("telnet");
         continue;
       }
     }
