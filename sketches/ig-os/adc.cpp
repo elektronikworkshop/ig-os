@@ -59,16 +59,16 @@ Adc::changeState(State newState)
     case StateIdle:
       spi.setAdcChannel(0);
       digitalWrite(SensorPowerPin, LOW);
-      Serial << F("ADC idle\n");
+      Debug << F("adc idle\n");
       break;
     case StatePowerUp:
-      Serial << F("ADC power up\n");
+      Debug << F("adc power up\n");
       break;
     case StateAdcSetup:
-      Serial << F("ADC setup\n");
+      Debug << F("adc setup\n");
       break;
     case StateDone:
-      Serial << F("ADC done\n");
+      Debug << F("adc done\n");
       break;
   }
   m_state = newState;

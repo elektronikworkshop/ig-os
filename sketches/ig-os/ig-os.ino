@@ -12,6 +12,10 @@
 #include "flash.h"
 #include "network.h"
 
+LogProxy Log;
+LogProxy Debug;//(false);
+LogProxy Error;
+
 void setup()
 {
   Serial.begin(115200);

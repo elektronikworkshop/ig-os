@@ -54,8 +54,6 @@ public:
   virtual uint8_t read()
   {
     unsigned int v = adc.getResult() / 4;
-        
-    Serial << "Sensor " << m_adcChannel << ": " << v << "\n";
 
     /* Clip and invert */
     v = v > 255 ? 255 : v;
@@ -102,7 +100,7 @@ public:
     }
     spi.setPump(true);
     Pump::enable();
-    Serial.println("ProtoPump: On");
+    Debug << "onboard pump enabled\n";
   }
   virtual void disable()
   {
@@ -111,7 +109,7 @@ public:
     }
     spi.setPump(false);
     Pump::disable();
-    Serial.println("ProtoPump: Off");
+    Debug << "onboard pump disabled\n";
   }
 };
 

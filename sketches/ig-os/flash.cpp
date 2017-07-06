@@ -9,8 +9,8 @@ FlashDataSet flashDataSet =
   "",  // router password
 
   {{ 30,  /* pump seconds                       */
-    180,  /* dry 0.6 * 255 (150) -- better 0.7 * 255 (180)! */
-    230,  /* wet 0.8 * 255 (200) -- better 0.9 * 255 (230)  */
+    180,  /* dry 0.6 * 255 (150) -- 0.7 * 255 (180)! */
+    230,  /* wet 0.8 * 255 (200) -- 0.9 * 255 (230)  */
       5,  /* soak minutes                       */
       0}, /* reservoir threshold                */
    {0},

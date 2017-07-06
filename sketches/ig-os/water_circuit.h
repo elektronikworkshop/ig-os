@@ -2,7 +2,11 @@
 #ifndef EW_WATER_CIRCUIT
 #define EW_WATER_CIRCUIT
 
-#include <Arduino.h>
+/* Note: inclusion of the project global include for debug logging prevents this from being used as a library - adjustments needed
+ * 
+ */
+ 
+#include "config.h"
 
 /**
  * Note that pumps valves sensors that are part of multiple watering circuits get their begin() member function called once for each circuit. 
@@ -84,17 +88,17 @@ public:
   virtual void disable() = 0;
   virtual uint8_t read() = 0;
   virtual void run() = 0;
+  static const char* getStateString(State state)
+  {
+    return (state == StateIdle    ? "Idle"    :
+           (state == StatePrepare ? "Prepare" :
+           (state == StateConvert ? "Convert" :
+                                      "Ready")));
+  }
 protected:
   void setState(State newState)
   {
-    if (newState != m_state) {
-      m_state = newState;
-      Serial.print("New sensor state: ");
-      Serial.println((m_state == StateIdle    ? "Idle" :
-                     (m_state == StatePrepare ? "Prepare" :
-                     (m_state == StateConvert ? "Convert" :
-                                                "Ready"))));
-    }
+    m_state = newState;
   }
 private:
   State m_state;
@@ -174,6 +178,27 @@ public:
   {
     return m_state;
   }
+
+  static const char* getStateString(State state)
+  {
+    switch (state) {
+      case StateIdle: return "idle";
+      case StateWaitSensor: return "wait sensor";
+      case StateSense: return "sense sensor";
+      case StateWaitReservoir: return "wait reservoir";
+      case StateSenseReservoir: return "sense reservoir";
+      case StateWaitPump: return "wait pump";
+      case StatePump: return "pump";
+      case StateSoak: return "soak";
+      default: return "unknown";
+    }
+  }
+  
+  const char* getStateString() const
+  {
+    return getStateString(m_state);
+  }
+
   void begin()
   {
     m_sensor.begin();
@@ -188,7 +213,7 @@ public:
     }
     m_state = StateWaitSensor;
     m_iterations = 0;
-    Serial.println("Water state: Triggered");
+    dbg() << "state: " << getStateString(m_state) << "\n";
   }
   void run()
   {
@@ -199,7 +224,7 @@ public:
         if (m_sensor.getState() == Sensor::StateIdle) {
           m_sensor.enable();
           m_state = StateSense;
-          Serial.println("Water state: Sensing");
+          dbg() << "state: " << getStateString(m_state) << "\n";
         }
         break;
       case StateSense:
@@ -207,8 +232,9 @@ public:
         if (m_sensor.getState() == Sensor::StateReady) {
           m_currentHumidity = m_sensor.read();
           m_sensor.disable();
-          Serial.print("Humidity: ");
-          Serial.println(m_currentHumidity);
+          
+          dbg() << "humidity: " << m_currentHumidity << "\n";
+          
           /* The first time we check if the soil is dry.
            * After watering we check if it's wet -- so we
            * have a little hysteresis here.
@@ -217,14 +243,15 @@ public:
               (m_iterations  > 0 and m_currentHumidity <= m_settings.m_threshWet))
           {
             if (m_settings.m_threshReservoir == 0) {
-              Serial.println("reservoir threshold disabled.");
               m_state = StateWaitPump;
+              dbg() << "reservoir threshold disabled, state: " << getStateString(m_state) << "\n";
             } else {
               m_state = StateWaitReservoir;
+              dbg() << "state: " << getStateString(m_state) << "\n";
             }
           } else {
             m_state = StateIdle;
-            Serial.println("Water state: Idle");
+            dbg() << "soil not dry enough or already wet, state: " << getStateString(m_state) << "\n";
           }
         }
         break;
@@ -232,7 +259,7 @@ public:
         if (m_reservoir.getState() == Sensor::StateIdle) {
           m_reservoir.enable();
           m_state = StateSenseReservoir;
-          Serial.println("Water state: Sensing reservoir");
+          dbg() << "state: sense reservoir\n";
         }
         break;
       case StateSenseReservoir:
@@ -244,17 +271,13 @@ public:
           Serial.println(fill);
           if (fill < m_settings.m_threshReservoir) {
             m_state = StateIdle;
-            Serial.println("Water state: reservoir empty -- now idle");
+            dbg() << "reservoir empty, read: " << fill << ", thresh: " << m_settings.m_threshReservoir << ". state: " << getStateString(m_state) << "\n";
 
             // TODO: this is the point to generate an alarm
             
           } else {
-            Serial.print("Water state: reservoir ok: ");
-            Serial.print(fill);
-            Serial.print(" > ");
-            Serial.println(m_settings.m_threshReservoir);
             m_state = StateWaitPump;
-            Serial.println("Water state: Wait pump");
+            dbg() << "reservoir ok, read: " << fill << ", thresh: " << m_settings.m_threshReservoir << ". state: wait pump\n";
           }
         }
         break;
@@ -263,7 +286,7 @@ public:
           m_valve.open();
           m_pump.enable();
           m_state = StatePump;
-          Serial.println("Water state: Watering");
+          dbg() << "state: " << getStateString(m_state) << "\n";
         }
         break;
       case StatePump:
@@ -272,15 +295,14 @@ public:
           m_valve.close();
           m_soakStartMillis = millis();
           m_state = StateSoak;
-          Serial.println("Water state: Soaking");
+          dbg() << "state: " << getStateString(m_state) << "\n";
         }
         break;
       case StateSoak:
         if ((millis() - m_soakStartMillis) / (60 * 1000) > m_settings.m_soakMinutes) {
-          /* We must return to triggered state to avoid sensor collisions */
           m_state = StateWaitSensor;
           m_iterations++;
-          Serial.println("Water state: Triggered");
+          dbg() << "state: " << getStateString(m_state) << "\n";
         }
         break;
     }
@@ -303,7 +325,7 @@ public:
         m_valve.close();
       }
       m_state = StateIdle;
-      Serial.println("Water state: Idle by reset");
+      dbg() << "state: " << getStateString(m_state) << " (by reset)\n";
     }
   }
 
@@ -322,6 +344,7 @@ public:
   void setThreshReservoir(uint8_t t) { m_settings.m_threshReservoir = t; }
 
   uint8_t getHumidity()    const { return m_currentHumidity; }
+  uint8_t getNumIterations() const { return m_iterations; }
 
   const Settings& getSettings() const { return m_settings; }
 
@@ -329,8 +352,6 @@ public:
   {
     return m_settings.m_pumpSeconds > 0;
   }
-
-  uint8_t getNumIterations() const { return m_iterations; }
   
   Sensor& getSensor()
   {
@@ -348,6 +369,18 @@ public:
   {
     return m_reservoir;
   }
+protected:
+  Print& dbg() const
+  {
+    Debug << "circuit ["<< m_id << "]: ";
+    return Debug;
+  }
+  Print& err() const
+  {
+    Debug << "circuit ["<< m_id << "]: ";
+    return Debug;
+  }
+
 private:
   /** Watering circuit ID */
   unsigned int m_id;

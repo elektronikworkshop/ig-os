@@ -13,7 +13,7 @@ const unsigned int SensorAdcPin   = A0;
 
 #define DefaultHostName "ew-intelliguss"
 
-#define WelcomeMessage(what) \
+#define WelcomeMessage(what)                          \
   "Welcome to the Intelli-Güss " what " interface!\n" \
   "Copyright (c) 2017 Elektronik Workshop\n"          \
   "Type \"help\" for available commands\n"
@@ -49,6 +49,76 @@ inline T getBitfields(T& target)
   value >>= shift;
   return value;
 }
+
+
+class LogProxy
+  : public Print
+{
+public:
+  static const unsigned int MaxStreams = 1;
+  LogProxy(bool enabled = true)
+    : m_streams({0})
+    , m_n(0)
+    , m_enabled(enabled)
+  { }
+  bool addClient(Print& stream)
+  {
+    for (uint8_t i = 0; i < MaxStreams; i++) {
+      if (m_streams[i] == &stream) {
+        return true;
+      }
+    }
+    for (uint8_t i = 0; i < MaxStreams; i++) {
+      if (not m_streams[i]) {
+        m_streams[i] = &stream;
+        m_n++;
+        return true;
+      }
+    }
+    return false;
+  }
+  bool removeClient(Print& stream)
+  {
+    for (uint8_t i = 0; i < MaxStreams; i++) {
+      if (m_streams[i] == &stream) {
+        m_streams[i] = NULL;
+        m_n--;
+        return true;
+      }
+    }
+    return false;
+  }
+  void enable(bool enable)
+  {
+    m_enabled = enable;
+  }
+protected:
+  virtual size_t write(uint8_t c)
+  {
+    if (not m_enabled) {
+      return 1;
+    }
+    
+    size_t ret = Serial.write(c);
+    
+    if (m_n) {
+      for (uint8_t i = 0; i < MaxStreams; i++) {
+        if (m_streams[i]) {
+          m_streams[i]->write(c);
+        }
+      }
+    }
+    return ret;
+  }
+private:
+  Print* m_streams[MaxStreams];
+  uint8_t m_n;
+  bool m_enabled;
+};
+
+extern LogProxy Log;
+extern LogProxy Debug;
+extern LogProxy Error;
 
 #endif  /* EW_IG_CONFIG_H */
 

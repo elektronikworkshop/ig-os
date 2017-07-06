@@ -80,7 +80,7 @@ public:
     
     /* We allow only one valve to be active at once */
     if (countBits(val) > 1) {
-      Serial<< "TOO MANY BITS FOR VALVE\n";
+      Error << "TOO MANY BITS FOR VALVE\n";
       return false;
     }
     
@@ -98,19 +98,8 @@ private:
 
   void transmit()
   {
-    Serial << "spi transmit: ";
-    Serial.println(m_register, BIN);
-    
-    digitalWrite(SpiLatchPin, LOW);
-
-//    delayMicroseconds(10000);
-    
-    /* shift */
+    digitalWrite(SpiLatchPin, LOW);    
     SPI.transfer(m_register);
-
-//    delayMicroseconds(10000);
-
-    /* latch */
     digitalWrite(SpiLatchPin, HIGH);
   }
 

@@ -17,6 +17,7 @@
 #include <climits>
 #include <stdarg.h>
 
+
 class Cli
   : public StreamCmd
 {
@@ -40,6 +41,7 @@ public:
     addCommand("c.valve", static_cast<CommandCallback>(&Cli::cmdCircuitValve));
     addCommand("c.info",  static_cast<CommandCallback>(&Cli::cmdCircuitInfo));
     addCommand("c.set",   static_cast<CommandCallback>(&Cli::cmdCircuitSet));
+    addCommand("c.stop",  static_cast<CommandCallback>(&Cli::cmdCircuitStop));
   
     addCommand("l.trig",  static_cast<CommandCallback>(&Cli::cmdLogTrigger));
     addCommand("l.info",  static_cast<CommandCallback>(&Cli::cmdLogInfo));
@@ -164,7 +166,8 @@ protected:
       "      set wet threshold, range 0 .. 255\n"
       "    res <thresh>\n"
       "      set reservoir threshold, range 0 .. 255 (0: reservoir off)\n"
-      "c.log [id]\n"
+      "c.stop <id>\n"
+      "  stop any watering/measuring activity on circuit <id> and return it to idle\n"
       "LOGGER\n"
       "l.info [id]\n"
       "  display logging configuration of circuit with ID [id]\n"
@@ -390,14 +393,18 @@ protected:
   void prtCircuitInfo(WaterCircuit* w, int id)
   {
     m_stream
-      <<  "on-board circuit [" << id << "]:" << (w->getPumpSeconds() == 0 ? " off\n" :  " active\n")
+      <<  "on-board circuit [" << id << "]:" << (w->getPumpSeconds() == 0 ? " off\n" :  "   on\n")
       <<  "            pump time  "; p("%3u s\n", w->getPumpSeconds());   m_stream
       <<  "           dry thresh  "; p("%3u\n", w->getThreshDry());       m_stream
       <<  "           wet thresh  "; p("%3u\n",  w->getThreshWet());      m_stream
       <<  "            soak time  "; p("%3u m\n", w->getSoakMinutes());   m_stream
       <<  "     reservoir thresh  "; w->getThreshReservoir() == 0 ? p("off\n") : p("%3u\n", w->getThreshReservoir()); m_stream
-      <<  "   last read humidity  "; p("%3u\n", w->getHumidity()); m_stream // the sensor should cache this
-      <<  "accumulated pump time  " << w->getPump().getTotalEnabledSeconds() << " s\n";
+      <<  "----------------------------\n"
+      <<  "   last read humidity  " << w->getHumidity() << "\n"
+      <<  "accumulated pump time  " << w->getPump().getTotalEnabledSeconds() << " s\n"
+      <<  "                state  " << w->getStateString() << "\n"
+      <<  "           iterations  " << w->getNumIterations() << "\n"
+      ;
   }
   
   void cmdCircuitInfo()
@@ -478,6 +485,18 @@ protected:
     }
   
     flashMemory.update();
+  }
+
+  void cmdCircuitStop()
+  { 
+    int id;
+    WaterCircuit* w;
+    if (not cmdParseId(id, w)) {
+      m_stream << "invalid index\n";
+      return;
+    }
+
+    w->reset();
   }
   
   void cmdLogTrigger()
@@ -851,6 +870,10 @@ public:
       << "quit\n"
       << "  quit telnet session and close connection\n";
   }
+  TelnetStreamProxy& getStreamProxy()
+  {
+    return m_proxyStream;
+  }
 private:
   void cmdQuit()
   {
@@ -880,13 +903,29 @@ void telnetRun()
        */
       if (!serverClients[i] || !serverClients[i].connected()) {
         if(serverClients[i]) {
+
           serverClients[i].stop();
           // empty buffers and reset state machines
           serverClients[i].flush();
         }
+
+        Debug << "New telnet client at slot " << i << "\n";
+
         serverClients[i] = server.available();
-        Serial << "New telnet client at slot " << Serial.println(i);
+
+        // TODO: we should find out how we detect connect/disconnect such that we can add and remove us from the proxy
+        if (not Log.addClient(telnetClis[i].getStreamProxy())) {
+          Error << "failed to add m_proxyStream to default logger proxy\n";
+        }
+        if (not Debug.addClient(telnetClis[i].getStreamProxy())) {
+          Error << "failed to add m_proxyStream to debug logger proxy\n";
+        }
+        if (not Error.addClient(telnetClis[i].getStreamProxy())) {
+          Error << "failed to add m_proxyStream to error logger proxy\n";
+        }
+
         serverClients[i] << WelcomeMessage("telnet");
+        
         continue;
       }
     }
