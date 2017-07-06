@@ -1,6 +1,8 @@
 #ifndef EW_IG_NETWORK_H
 #define EW_IG_NETWORK_H
 
+#include <Arduino.h>
+
 class Network
 {
 public:
@@ -23,8 +25,10 @@ public:
 
   bool isConnected() const { return m_state == StateConnected; }
 
-  static void printVisibleNetworks();
+  static void printVisibleNetworks(Stream& stream = Serial);
 private:
+  void startMdns();
+
   State m_state;
   unsigned long m_connectStartMs;
   unsigned long m_connectTimeoutMs;

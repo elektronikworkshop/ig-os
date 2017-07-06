@@ -1,6 +1,8 @@
 #include "network.h"
 #include "flash.h"
 
+#include <ESP8266mDNS.h>
+
 Network network;
 
 Network::Network()
@@ -13,6 +15,21 @@ void
 Network::begin()
 {
   connect();
+}
+
+void
+Network::startMdns()
+{
+  // Set up mDNS responder:
+  // - first argument is the domain name, in this example
+  //   the fully-qualified domain name is "esp8266.local"
+  // - second argument is the IP address to advertise
+  //   we send our IP address on the WiFi network
+  if (!MDNS.begin("intelliguss")) {
+    Serial.println("Error setting up MDNS responder!");
+  } else {
+    MDNS.addService("telnet", "tcp", 23);
+  }
 }
 
 void
@@ -31,6 +48,9 @@ Network::run()
           << "signal strength: " << WiFi.RSSI() << " dB\n"
           << "IP:              " << WiFi.localIP() << "\n";
         m_state = StateConnected;
+
+        startMdns();
+        
       } else if (millis() - m_connectStartMs > m_connectTimeoutMs) {
         // Stop any pending request
         WiFi.disconnect();
@@ -83,13 +103,13 @@ Network::disconnect()
 }
 
 void
-Network::printVisibleNetworks()
+Network::printVisibleNetworks(Stream& stream)
 {
   byte n = WiFi.scanNetworks();
   if (n) {
-    Serial << "visible network SSIDs:\n";     
+    stream << "visible network SSIDs:\n";     
     for (int i = 0; i < n; i++) {
-      Serial << "  " << WiFi.SSID(i) << " (" << WiFi.RSSI(i) << " dB)\n";
+      stream << "  " << WiFi.SSID(i) << " (" << WiFi.RSSI(i) << " dB)\n";
     }
   }
 }

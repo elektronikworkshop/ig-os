@@ -22,8 +22,6 @@ void setup()
   network.begin();
   timeClient.begin();
 
-  cliInit();
-
   spi.begin();
   adc.begin();
 
@@ -32,6 +30,7 @@ void setup()
   }
 
   loggerBegin();
+  telnetBegin();
 
   pinMode(LED_BUILTIN, OUTPUT);
 }
@@ -39,9 +38,10 @@ void setup()
 
 void loop()
 {
-  cliRun();
+  uartCli.readSerial();
 
   network.run();
+  telnetRun();
 
   if (network.isConnected()) {
     timeClient.update();
@@ -57,11 +57,16 @@ void loop()
     
     case SystemMode::Auto:
     {
-      bool trigger = wateringDue() or cliTrigger;
-      cliTrigger = false;
+      bool trigger = wateringDue() or uartCli.isWateringTriggered();
+
+      /* Add trigger from telnet clients */
+      for (int i = 0; i < MAX_SRV_CLIENTS; i++) {
+        trigger = trigger or telnetClis[i].isWateringTriggered();
+      }
+      
       for (WaterCircuit** c = circuits; *c; c++) {
         if ((*c)->isEnabled()) {
-          if (trigger or cliTrigger) {
+          if (trigger) {
             (*c)->trigger();
           }
           (*c)->run();
