@@ -25,7 +25,13 @@ Network::startMdns()
   //   the fully-qualified domain name is "esp8266.local"
   // - second argument is the IP address to advertise
   //   we send our IP address on the WiFi network
-  if (!MDNS.begin("intelliguss")) {
+
+  const char* hostName = flashDataSet.hostName;
+  if (strlen(hostName) == 0) {
+    Serial << "host name with length zero detected. defaulting to \"" << DefaultHostName << "\"\n";
+    hostName = DefaultHostName;
+  }
+  if (!MDNS.begin(hostName)) {
     Serial.println("Error setting up MDNS responder!");
   } else {
     MDNS.addService("telnet", "tcp", 23);

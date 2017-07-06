@@ -9,22 +9,25 @@
 
 #include "system.h"
 
-const unsigned int MaxSsidNameLen = 63; // excluding zero termination
-const unsigned int MaxSsidPassLen = 63; // excluding zero termination
+const unsigned int MaxWifiSsidLen = 63; // excluding zero termination
+const unsigned int MaxWifiPassLen = 63; // excluding zero termination
+const unsigned int MaxHostNameLen = 63; // excluding zero termination
 
 struct FlashDataSet // FLASH backed data
 {
   uint16_t                size;          // if size changes, use defaults
   uint16_t                sum;           // if sum is different from memory struct, write
-  char                    wifiSsid[MaxSsidNameLen + 1];
-  char                    wifiPass[MaxSsidPassLen + 1];
+  char                    wifiSsid[MaxWifiSsidLen + 1];
+  char                    wifiPass[MaxWifiPassLen + 1];
 
   WaterCircuit::Settings     waterCircuitSettings[NumWaterCircuits];
   SchedulerTime::Time        schedulerTimes[NumSchedulerTimes];
   ThingSpeakLogger::TslSettings thingSpeakLoggerSettings[NumWaterCircuits];
 
   // TODO: make mDns host name configurable
-  
+
+  char                    hostName[MaxHostNameLen + 1];
+
   uint8_t  reserved[32];
   
 #if 0

@@ -11,6 +11,9 @@ const unsigned int SpiLatchPin = D8;
 const unsigned int SensorPowerPin = D4;
 const unsigned int SensorAdcPin   = A0;
 
+#define DefaultHostName "ew-intelliguss"
+
+
 
 template<class T> inline Print &operator <<(Print &obj, T arg) { obj.print(arg); return obj; }
 

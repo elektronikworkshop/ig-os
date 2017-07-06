@@ -53,6 +53,7 @@ public:
     addCommand("n.ssid",    static_cast<CommandCallback>(&Cli::cmdNetworkSsid));
     addCommand("n.pass",    static_cast<CommandCallback>(&Cli::cmdNetworkPass));
     addCommand("n.connect", static_cast<CommandCallback>(&Cli::cmdNetworkConnect));
+    addCommand("n.host", static_cast<CommandCallback>(&Cli::cmdNetworkHostName));
   
     setDefaultHandler(static_cast<DefaultCallback>(&Cli::cmdInvalid));
   }
@@ -198,6 +199,9 @@ protected:
       "  set wifi SSID\n"
       "n.pass <password>\n"
       "  set wifi password\n"
+      "n.host [hostname]\n"
+      "  shows the current host name when invoked without argument\n"
+      "  sets a new host name when called with argument\n"
       "n.connect\n"
       "  connect to configured wifi network\n"
       "----------------\n"
@@ -674,7 +678,7 @@ protected:
       m_stream << "no wifi SSID argument\n";
       return;
     }
-    strncpy(flashDataSet.wifiSsid, arg, MaxSsidNameLen);
+    strncpy(flashDataSet.wifiSsid, arg, MaxWifiSsidLen);
     flashMemory.update();
   
     m_stream << "wifi SSID \"" << arg << "\" stored to flash\n";
@@ -688,7 +692,7 @@ protected:
       m_stream << "no wifi password argument\n";
       return;
     }
-    strncpy(flashDataSet.wifiPass, arg, MaxSsidPassLen);
+    strncpy(flashDataSet.wifiPass, arg, MaxWifiPassLen);
     flashMemory.update();
   
     m_stream << "wifi pass \"" << arg << "\" stored to flash\n";
@@ -704,7 +708,29 @@ protected:
   {
     Network::printVisibleNetworks(m_stream);
   }
+
+  void cmdNetworkHostName()
+  {
+    char* arg = next();
+    if (not arg) {
+      m_stream << "current host name is \"" << flashDataSet.hostName << "\"\n";
+      return;
+    }
+
+    if (strlen(arg) == 0) {
+      m_stream << "the host name can not be empty\n";
+      return;
+    }
+    
+    strncpy(flashDataSet.hostName, arg, MaxHostNameLen);
+    flashMemory.update();
   
+    m_stream << "new host name \"" << arg << "\" stored to flash. restarting network...\n";
+
+    network.disconnect();
+    network.connect();
+  }
+    
   void cmdInvalid(const char *command)
   {
     m_stream
@@ -724,7 +750,12 @@ const unsigned int MAX_SRV_CLIENTS = 1;
 WiFiServer server(23);
 WiFiClient serverClients[MAX_SRV_CLIENTS];
 
-
+/* A stream proxy which handles telnet logic and cleans up the stream for
+ *  processing downstream.
+ *  
+ * http://mud-dev.wikidot.com/telnet:negotiation
+ * https://github.com/lukemalcolm/TelnetServLib/tree/master/TelnetServLib
+ */
 class TelnetStreamProxy
   : public Stream
 {
@@ -732,7 +763,6 @@ private:
   Stream& m_stream;
   uint8_t m_negotiationSequenceIndex;
   bool m_lastWasCarriageReturn;
-  
 public:
   TelnetStreamProxy(Stream& stream)
     : m_stream(stream)
@@ -756,13 +786,8 @@ public:
   {
     return m_stream.available();
   }
-
   virtual int read()
-  {
-    /* http://mud-dev.wikidot.com/telnet:negotiation
-     * https://github.com/lukemalcolm/TelnetServLib/tree/master/TelnetServLib
-     */
-    
+  {    
     while (true) {
       
       int d = m_stream.read();
@@ -772,8 +797,10 @@ public:
         return d;
       }
       
-      /* echo it back */
-//      m_stream.write(d);
+      /* echo it back (must be negotiated most probably) */
+#if 0
+      m_stream.write(d);
+#endif
 
       /* strip negotiation sequences */
       if (c == 0xFF and m_negotiationSequenceIndex == 0) {
@@ -789,7 +816,7 @@ public:
         continue;
       }
 
-      // TODO: strip other unwanted stuff here
+      /* strip other unwanted stuff here */
 
       return d;      
     }
@@ -861,6 +888,8 @@ void telnetRun()
         serverClients[i] = server.available();
         Serial << "New telnet client at slot " << Serial.println(i);
         serverClients[i] << "Welcome to the Intelli-Güss telnet interface!\n";
+        serverClients[i] << "Copyright (c) 2017 Elektronik Workshop\n";
+        serverClients[i] << "Type \"help\" for available commands\n";
         continue;
       }
     }
