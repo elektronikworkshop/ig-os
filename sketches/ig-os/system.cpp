@@ -39,11 +39,18 @@ public:
           setState(StatePrepare);
         }
         break;
+      case StatePrepare:
+      case StateConvert:
+      case StateReady:
+        break;
     }
   }
   virtual void disable()
   {
     switch (getState()) {
+      case StateIdle:
+      case StatePrepare:
+        break;
       case StateConvert:
       case StateReady:
         adc.reset();
@@ -64,6 +71,8 @@ public:
   virtual void run()
   {
     switch (getState()) {
+      case StateIdle:
+        break;
       case StatePrepare:
         if (adc.request(m_adcChannel)) {
           setState(StateConvert);
@@ -75,6 +84,8 @@ public:
           if (adc.conversionDone()) {
             setState(StateReady);
           }
+        break;
+      case StateReady:
         break;
     }
   }

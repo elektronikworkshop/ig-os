@@ -27,6 +27,7 @@ struct FlashDataSet // FLASH backed data
   // TODO: make mDns host name configurable
 
   char                    hostName[MaxHostNameLen + 1];
+  bool telnetEnabled;
 
   uint8_t  reserved[32];
   

@@ -36,6 +36,9 @@ FlashDataSet flashDataSet =
 
   /* hostName */
   DefaultHostName,
+
+  /* telnetEnabled */
+  false,
   
   {0} /* reserved */
 

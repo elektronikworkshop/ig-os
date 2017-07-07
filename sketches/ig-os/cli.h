@@ -26,13 +26,15 @@ private:
   
 public:
   Cli(Stream& stream,
-      char eolChar = '\n')
-    : StreamCmd(stream, eolChar)
+      char eolChar = '\n',
+      const char* prompt = NULL)
+    : StreamCmd(stream, eolChar, prompt)
     , m_cliTrigger(false)
   {
     addCommand("help",   static_cast<CommandCallback>(&Cli::cmdHelp));
     addCommand("time",   static_cast<CommandCallback>(&Cli::cmdTime));
     addCommand("mode",   static_cast<CommandCallback>(&Cli::cmdMode));
+    addCommand("hist",   static_cast<CommandCallback>(&Cli::cmdHist));
     
     addCommand("c.trig",  static_cast<CommandCallback>(&Cli::cmdCircuitTrigger));
     addCommand("c.read",  static_cast<CommandCallback>(&Cli::cmdCircuitRead));
@@ -56,6 +58,7 @@ public:
     addCommand("n.pass",    static_cast<CommandCallback>(&Cli::cmdNetworkPass));
     addCommand("n.connect", static_cast<CommandCallback>(&Cli::cmdNetworkConnect));
     addCommand("n.host", static_cast<CommandCallback>(&Cli::cmdNetworkHostName));
+    addCommand("n.telnet", static_cast<CommandCallback>(&Cli::cmdNetworkTelnet));
   
     setDefaultHandler(static_cast<DefaultCallback>(&Cli::cmdInvalid));
   }
@@ -142,12 +145,19 @@ protected:
       "  display current time\n"
       "mode <off, auto, man>\n"
       "  switch the intelligüss mode\n"
+      "hist [a] [b]\n"
+      "  print error history. with no arguments the first few entries are displayed\n"  // TODO: we should rather print the last few...
+      "    hist [a] prints the first [a] entries, if [a] is -1 the whole history is printed\n"
+      "    hist [a] [b] prints the history between entries [a] and [b]\n"
+      "      if [b] is -1 all entries from [a] up to the end are printed\n"
       "WATERING CIRCUITS:\n"
       "c.trig [id]\n"
       "  manually trigger watering cycle. if [id] is provided only\n"
       "  circuit with [id] is triggered\n"
       "c.read <id>\n"
       "  read sensor of circuit with ID <id>\n"
+      "c.res <id>\n"
+      "  read reservoir of circuit with ID <id>\n"
       "c.pump <id> <seconds>\n"
       "  run pump of circuit with ID <id> for <seconds> seconds\n"
       "c.info [id]\n"
@@ -190,9 +200,6 @@ protected:
       "  configure scheduler whereas\n"
       "    <index> is the entry number between 1 and "  /*<< NumSchedulerTimes << */ "8\n"
       "    <time> is the time formatted \"hh:mm\" or \"off\"\n"
-      "RESERVOIR\n"
-      "r.read\n"
-      "  read reservoir level\n"
       "NETWORK\n"
       "n.rssi\n"
       "  display the current connected network strength (RSSI)\n"
@@ -207,6 +214,8 @@ protected:
       "  sets a new host name when called with argument\n"
       "n.connect\n"
       "  connect to configured wifi network\n"
+      "n.telnet [on/off]\n"
+      "  display or change state (\"on\" or \"off\") of the telnet server\n"
       "----------------\n"
     ));
   }
@@ -238,7 +247,96 @@ protected:
         systemMode.setMode(newMode);
     }
   }
+
+  void skipLines(unsigned int& skip, unsigned int& i, const char* buf, unsigned int count)
+  {
+    for (; i < count and skip;) {
+      char c = *(buf + i);
+      if (c == '\n') {
+        skip--;
+      }
+      if (not c) {
+        return;
+      }
+      i++;
+    }
+  }
+  void prtLines(unsigned int& numLines, const char* buf, unsigned int count)
+  {
+    for (int i = 0; i < count and numLines; i++) {
+      char c = *(buf + i);
+      if (not c) {
+        return;
+      }
+      m_stream << c;
+      if (c == '\n') {
+        --numLines;
+        if (numLines == 0) {
+          return;
+        }
+      }
+    }
+  }
+  void cmdHist()
+  {
+    unsigned int numLinesRequested = 10, skip = 0, n;
+
+    int start = 0, end = 0;
+    cmdParseInt(start, -1, INT_MAX);
+    cmdParseInt(end, -1, INT_MAX);
+
+    /* only count given */
+    if (start and not end) {
+      if (start > 0) {
+        numLinesRequested = start;
+      } else {
+        numLinesRequested = UINT_MAX;
+      }
+    } else if (start and end) {
+      if (start < 0) {
+        m_stream << "<start> can not be negative when requesting a range\n";
+        return;
+      }
+      if (end < 0) {
+        numLinesRequested = UINT_MAX;
+      } else {
+        if (end <= start) {
+          m_stream << "<start> must be smaller than <end>\n";
+          return;
+        }
+        numLinesRequested = end - start + 1;
+      }
+      skip = start;
+    }
     
+    ErrorLogProxy::BufNfo nfo;
+    Error.getBuffer(nfo);
+
+    n = numLinesRequested;
+
+    m_stream << "----\n";
+    
+    unsigned int i = 0;
+    skipLines(skip, i, nfo.a, nfo.na);
+    if (not skip) {
+      prtLines(n, nfo.a + i, nfo.na - i);
+    }
+    i = 0;
+    if (skip) {
+      skipLines(skip, i, nfo.b, nfo.nb);
+    }
+    if (not skip) {
+      prtLines(n, nfo.b + i, nfo.nb - i);
+    }
+    if (numLinesRequested - n == 0) {
+      m_stream << "history clean\n";
+    } else {
+      m_stream
+        << "----\n"
+        << numLinesRequested - n << " lines\n"
+        ;
+    }
+  }
   void cmdCircuitTrigger()
   {
     m_cliTrigger = true;
@@ -748,7 +846,44 @@ protected:
     network.disconnect();
     network.connect();
   }
-    
+
+  void cmdNetworkTelnet()
+  {
+    char* arg = next();
+    if (not arg) {
+      m_stream << "the telnet server is \"" << (flashDataSet.telnetEnabled ? "enabled\n" : "disabled\n");
+      return;
+    }
+
+    if (strlen(arg) == 0) {
+      m_stream << "supported values are \"on\" or \"off\"\n";
+      return;
+    }
+
+    if (strcmp(arg, "on") == 0) {
+      m_stream << "telnet server ";
+      if (not flashDataSet.telnetEnabled) {
+        flashDataSet.telnetEnabled = true;
+        m_stream << " now enabled\n";
+      } else {
+        m_stream << "already enabled\n";
+        return;
+      }
+    } else if (strcmp(arg, "off") == 0) {
+      m_stream << "telnet server ";
+      if (flashDataSet.telnetEnabled) {
+        flashDataSet.telnetEnabled = false;
+        m_stream << " now disabled\n";
+      } else {
+        m_stream << "already disabled\n";
+        return;
+      }
+    } else {
+      m_stream << "supported values are \"on\" or \"off\"\n";
+      return;
+    }
+    flashMemory.update();
+  }
   void cmdInvalid(const char *command)
   {
     m_stream
@@ -763,10 +898,9 @@ Cli uartCli(Serial);
 /*
  * https://github.com/esp8266/Arduino/blob/master/libraries/ESP8266WiFi/examples/WiFiTelnetToSerial/WiFiTelnetToSerial.ino
  */
-const unsigned int MAX_SRV_CLIENTS = 1;
 
 WiFiServer server(23);
-WiFiClient serverClients[MAX_SRV_CLIENTS];
+WiFiClient serverClients[MaxTelnetClients];
 
 /* A stream proxy which handles telnet logic and cleans up the stream for
  *  processing downstream.
@@ -859,7 +993,7 @@ public:
   TelnetCli(WiFiClient& client)
     : m_client(client)
     , m_proxyStream(client)
-    , Cli(m_proxyStream, '\r')
+    , Cli(m_proxyStream, '\r', flashDataSet.hostName)
   {
     addCommand("quit",   static_cast<CommandCallback>(&TelnetCli::cmdQuit));
   }
@@ -883,26 +1017,41 @@ private:
   TelnetStreamProxy m_proxyStream;
 };
 
-TelnetCli telnetClis[MAX_SRV_CLIENTS] = {serverClients[0]};
-
-void telnetBegin()
-{
-  server.begin();
-  server.setNoDelay(true);
-}
+TelnetCli telnetClis[MaxTelnetClients] = {serverClients[0]};
 
 void telnetRun()
 {
+  if (not flashDataSet.telnetEnabled) {
+    if (server.status() != CLOSED) {
+
+      Debug << "stopping telnet server\n";
+      
+      /* stop clients */
+      for (uint8_t i = 0; i < MaxTelnetClients; i++) {
+        if (serverClients[i] && serverClients[i].connected()) {
+          serverClients[i].stop();
+        }
+      }
+      
+      server.stop();
+    }
+    return;
+  } else {
+    if (server.status() == CLOSED) {
+      Debug << "starting telnet server\n";
+      server.begin();
+      server.setNoDelay(true);
+    }
+  }
+  
   /* check if there are any new clients
    *  
    */
   if (server.hasClient()) {
-    for(uint8_t i = 0; i < MAX_SRV_CLIENTS; i++) {
-      /* find free/disconnected slot
-       *  
-       */
-      if (!serverClients[i] || !serverClients[i].connected()) {
-        if(serverClients[i]) {
+    for (uint8_t i = 0; i < MaxTelnetClients; i++) {
+      /* find free/disconnected slot */
+      if (!serverClients[i] or !serverClients[i].connected()) {
+        if (serverClients[i]) {
 
           serverClients[i].stop();
           // empty buffers and reset state machines
@@ -924,7 +1073,10 @@ void telnetRun()
           Error << "failed to add m_proxyStream to error logger proxy\n";
         }
 
-        serverClients[i] << WelcomeMessage("telnet");
+        serverClients[i]
+          << WelcomeMessage("telnet")
+          << flashDataSet.hostName << "> "
+          ;
         
         continue;
       }
@@ -936,11 +1088,11 @@ void telnetRun()
     serverClient.stop();
   }
   /* check clients for data */
-  for (uint8_t i = 0; i < MAX_SRV_CLIENTS; i++) {
+  for (uint8_t i = 0; i < MaxTelnetClients; i++) {
     if (serverClients[i] && serverClients[i].connected()) {
       if (serverClients[i].available()) {
         /* as long as telnet data is avaible we read it and stream it to the CLI */
-        while(serverClients[i].available()) {
+        while (serverClients[i].available()) {
           telnetClis[i].readSerial();
         }
       }

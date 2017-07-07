@@ -251,7 +251,7 @@ public:
             }
           } else {
             m_state = StateIdle;
-            dbg() << "soil not dry enough or already wet, state: " << getStateString(m_state) << "\n";
+            dbg() << "soil not dry enough for watering or already wet, state: " << getStateString(m_state) << "\n";
           }
         }
         break;
@@ -272,6 +272,7 @@ public:
           if (fill < m_settings.m_threshReservoir) {
             m_state = StateIdle;
             dbg() << "reservoir empty, read: " << fill << ", thresh: " << m_settings.m_threshReservoir << ". state: " << getStateString(m_state) << "\n";
+            err() << "reservoir empty, read: " << fill << ", thresh: " << m_settings.m_threshReservoir << ". state: " << getStateString(m_state) << "\n";
 
             // TODO: this is the point to generate an alarm
             

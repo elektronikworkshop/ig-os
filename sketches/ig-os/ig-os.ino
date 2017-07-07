@@ -12,9 +12,9 @@
 #include "flash.h"
 #include "network.h"
 
-LogProxy Log;
-LogProxy Debug;//(false);
-LogProxy Error;
+LogProxy<MaxTelnetClients> Log;
+LogProxy<MaxTelnetClients> Debug;//(false);
+ErrorLogProxy Error;
 
 void setup()
 {
@@ -35,7 +35,6 @@ void setup()
   }
 
   loggerBegin();
-  telnetBegin();
 
   pinMode(LED_BUILTIN, OUTPUT);
 }
@@ -65,7 +64,7 @@ void loop()
       bool trigger = wateringDue() or uartCli.isWateringTriggered();
 
       /* Add trigger from telnet clients */
-      for (int i = 0; i < MAX_SRV_CLIENTS; i++) {
+      for (int i = 0; i < MaxTelnetClients; i++) {
         trigger = trigger or telnetClis[i].isWateringTriggered();
       }
       

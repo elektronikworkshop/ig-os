@@ -11,6 +11,10 @@ const unsigned int SpiLatchPin = D8;
 const unsigned int SensorPowerPin = D4;
 const unsigned int SensorAdcPin   = A0;
 
+const unsigned int MaxTelnetClients = 1;
+const unsigned int SizeErrLogBuffer = 2048;
+
+
 #define DefaultHostName "ew-intelliguss"
 
 #define WelcomeMessage(what)                          \
@@ -50,14 +54,14 @@ inline T getBitfields(T& target)
   return value;
 }
 
-
+template<unsigned int _MaxStreams>
 class LogProxy
   : public Print
 {
 public:
-  static const unsigned int MaxStreams = 1;
+  static const unsigned int MaxStreams = _MaxStreams;
   LogProxy(bool enabled = true)
-    : m_streams({0})
+    : m_streams{0}
     , m_n(0)
     , m_enabled(enabled)
   { }
@@ -92,6 +96,10 @@ public:
   {
     m_enabled = enable;
   }
+  bool isEnabled() const
+  {
+    return m_enabled;
+  }
 protected:
   virtual size_t write(uint8_t c)
   {
@@ -116,9 +124,58 @@ private:
   bool m_enabled;
 };
 
-extern LogProxy Log;
-extern LogProxy Debug;
-extern LogProxy Error;
+template<unsigned int _BufferSize, unsigned int _MaxStreams>
+class BufferedLogProxy
+  : public LogProxy<_MaxStreams>
+{
+public:
+  static const unsigned int BufferSize = _BufferSize;
+  
+  BufferedLogProxy(bool enabled = true)
+    : LogProxy<_MaxStreams>(enabled)
+    , m_buffer{0}
+    , m_writeIndex(0)
+  { }
+  struct BufNfo
+  {
+    const char* a;
+    unsigned int na;
+    const char* b;
+    unsigned int nb;
+  };
+  void getBuffer(BufNfo& nfo) const
+  {
+    nfo.a = m_buffer + m_writeIndex;
+    nfo.na = BufferSize - m_writeIndex;
+    nfo.b = m_buffer;
+    nfo.nb = m_writeIndex;
+  }
+protected:
+  virtual size_t write(uint8_t c)
+  {
+    if (not this->isEnabled()) {
+      return 1;
+    }
+
+    /* write to buffer */
+    
+    m_buffer[m_writeIndex++] = c;
+    if (m_writeIndex == BufferSize) {
+      m_writeIndex = 0;
+    }
+
+    return LogProxy<_MaxStreams>::write(c);
+  }
+private:
+  char m_buffer[BufferSize];
+  unsigned int m_writeIndex;
+};
+
+
+extern LogProxy<MaxTelnetClients> Log;
+extern LogProxy<MaxTelnetClients> Debug;
+typedef BufferedLogProxy<SizeErrLogBuffer, MaxTelnetClients> ErrorLogProxy;
+extern ErrorLogProxy Error;
 
 #endif  /* EW_IG_CONFIG_H */
 

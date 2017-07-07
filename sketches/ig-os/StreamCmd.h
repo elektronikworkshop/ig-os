@@ -45,7 +45,7 @@
 class StreamCmd
 {
 public:
-  StreamCmd(Stream& stream, char eolChar = '\n');
+  StreamCmd(Stream& stream, char eolChar = '\n', const char* prompt = NULL);
 
   void readSerial();    // Main entry point.
   void clearBuffer();   // Clears the input buffer.
@@ -75,6 +75,7 @@ private:
 
   char delim[2]; // null-terminated list of character to be used as delimeters for tokenizing (default " ")
   char term;     // Character that signals end of command (default '\n')
+  const char* m_prompt;
 
   char buffer[SERIALCOMMAND_BUFFER + 1]; // Buffer of stored characters while waiting for terminator character
   byte bufPos;                        // Current position in the buffer

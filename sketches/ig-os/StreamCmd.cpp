@@ -27,13 +27,15 @@
  * Constructor makes sure some things are set.
  */
 StreamCmd::StreamCmd(Stream& stream,
-                             char eolChar)
+                     char eolChar,
+                     const char* prompt)
   : m_stream(stream)
   , commandList(NULL)
   , commandCount(0)
   , m_defaultCallback(NULL)
   , delim({' ', 0})
   , term(eolChar)           // default terminator for commands, newline character
+  , m_prompt(prompt)
   , buffer({0})
   , bufPos(0)
   , last(NULL)
@@ -101,35 +103,39 @@ void StreamCmd::readSerial()
       if (command != NULL) {
 
         /* we ignore empty commands */
-        if (strlen(command) == 0) {
-          break;
-        }
-        
-        boolean matched = false;
-        for (int i = 0; i < commandCount; i++) {
-          #ifdef SERIALCOMMAND_DEBUG
-            m_stream.print("Comparing [");
-            m_stream.print(command);
-            m_stream.print("] to [");
-            m_stream.print(commandList[i].command);
-            m_stream.println("]");
-          #endif
-
-          // Compare the found command against the list of known commands for a match
-          if (strncmp(command, commandList[i].command, SERIALCOMMAND_MAXCOMMANDLENGTH) == 0) {
+        if (strlen(command)) {
+                  
+          boolean matched = false;
+          for (int i = 0; i < commandCount; i++) {
             #ifdef SERIALCOMMAND_DEBUG
-              m_stream.print("Matched Command: ");
-              m_stream.println(command);
+              m_stream.print("Comparing [");
+              m_stream.print(command);
+              m_stream.print("] to [");
+              m_stream.print(commandList[i].command);
+              m_stream.println("]");
             #endif
-
-            // Execute the stored handler function for the command
-            (this->*commandList[i].commandCallback)();
-            matched = true;
-            break;
+  
+            // Compare the found command against the list of known commands for a match
+            if (strncmp(command, commandList[i].command, SERIALCOMMAND_MAXCOMMANDLENGTH) == 0) {
+              #ifdef SERIALCOMMAND_DEBUG
+                m_stream.print("Matched Command: ");
+                m_stream.println(command);
+              #endif
+  
+              // Execute the stored handler function for the command
+              (this->*commandList[i].commandCallback)();
+              matched = true;
+              break;
+            }
+          }
+          if (!matched && (m_defaultCallback != NULL)) {
+            (this->*m_defaultCallback)(command);
           }
         }
-        if (!matched && (m_defaultCallback != NULL)) {
-          (this->*m_defaultCallback)(command);
+
+        if (m_prompt) {
+          m_stream.print(m_prompt);
+          m_stream.print("> ");
         }
       }
       clearBuffer();
