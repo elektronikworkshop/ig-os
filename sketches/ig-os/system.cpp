@@ -22,6 +22,9 @@ class OnboardSensor:
 {
 public:
   
+  static const unsigned int NumMeasurements = 8;
+  static const unsigned int MeasurementIntervalMs = 1000UL;
+  
   OnboardSensor(Adc::Channel channel)
     : m_adcChannel(channel)
   {}
@@ -33,6 +36,7 @@ public:
     switch (getState()) {
       case StateIdle:
         m_result = 0;
+        m_index = 0;
         if (adc.request(m_adcChannel)) {
           setState(StateConvert);
         } else {
@@ -60,7 +64,7 @@ public:
   }
   virtual uint8_t read()
   {
-    unsigned int v = adc.getResult() / 4;
+    uint16_t v = m_result >> 2;
 
     /* Clip and invert */
     v = v > 255 ? 255 : v;
@@ -81,8 +85,33 @@ public:
         }
         break;
       case StateConvert:
-          if (adc.conversionDone()) {
-            setState(StateReady);
+          if (adc.isReady()) {
+            
+            if (m_index == 0) {
+              
+              /* nothing */
+              
+            } else if (m_index < NumMeasurements) {
+            
+              if (millis() - m_millsPrevMeasurement < MeasurementIntervalMs) {
+                break;
+              }
+              
+            } else {
+              m_result /= NumMeasurements;
+              setState(StateReady);
+              break;
+            }
+
+            Debug << "sensor " << m_adcChannel << ", iteration " << m_index << ": ";
+            
+            m_millsPrevMeasurement = millis();
+            auto v = adc.read();
+            m_result += v;
+            m_index++;
+
+            Debug << v << ", " << m_result / m_index << "\n";
+
           }
         break;
       case StateReady:
@@ -91,7 +120,9 @@ public:
   }
 private:
   Adc::Channel m_adcChannel;
-  uint8_t m_result;
+  uint32_t m_result;
+  uint8_t m_index;
+  unsigned long m_millsPrevMeasurement;
 };
 
 /** 

@@ -57,7 +57,7 @@ Logger::run()
         reservoir.disable();
 
         if (log(m_humidity, m_reservoir, m_circuit.getPump().getTotalEnabledSeconds())) {
-          Serial << "logged data for circuit " << m_circuit.getId() << " at " << timeClient.getFormattedTime() << "\n";
+          Debug << "logged data for circuit " << m_circuit.getId() << " at " << timeClient.getFormattedTime() << "\n";
         }
 
         m_previousLogTime = millis();

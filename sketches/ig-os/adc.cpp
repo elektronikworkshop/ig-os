@@ -26,11 +26,10 @@ Adc::run()
       break;
     case StateAdcSetup:
       if (now - m_lastStateChangeMs > msAdcSetup) {
-        m_result = analogRead(SensorAdcPin);
-        changeState(StateDone);
+        changeState(StateReady);
       }
       break;
-    case StateDone:
+    case StateReady:
       break;
   }
 }
@@ -67,11 +66,17 @@ Adc::changeState(State newState)
     case StateAdcSetup:
       Debug << F("adc setup\n");
       break;
-    case StateDone:
-      Debug << F("adc done\n");
+    case StateReady:
+      Debug << F("adc ready\n");
       break;
   }
   m_state = newState;
   m_lastStateChangeMs = millis();
+}
+
+uint16_t
+Adc::read() const
+{
+  return analogRead(SensorAdcPin);
 }
 

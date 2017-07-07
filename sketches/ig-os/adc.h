@@ -11,7 +11,7 @@ public:
     StateIdle = 0,
     StatePowerUp,
     StateAdcSetup,
-    StateDone,
+    StateReady,
   } State;
   typedef enum
   {
@@ -37,14 +37,11 @@ public:
   {
     return m_state;
   }
-  bool conversionDone() const
+  bool isReady() const
   {
-    return m_state == StateDone;
+    return m_state == StateReady;
   }
-  uint16_t getResult() const
-  {
-    return m_result;
-  }
+  uint16_t read() const;
   void reset()
   {
       changeState(StateIdle);
@@ -55,7 +52,6 @@ private:
   State m_state;
   Channel m_channel;
   unsigned long m_lastStateChangeMs;
-  uint16_t m_result;
 };
 
 extern Adc adc;
