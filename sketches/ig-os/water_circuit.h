@@ -371,6 +371,24 @@ public:
   {
     return m_reservoir;
   }
+
+  Print& prt(Print& p)
+  {
+    p
+      <<  (m_settings.m_pumpSeconds == 0 ? " off\n" :  "   on\n")
+      <<  "            pump time  "; prtFmt(p, "%3u s\n", m_settings.m_pumpSeconds)
+      <<  "           dry thresh  "; prtFmt(p, "%3u\n", m_settings.m_threshDry)
+      <<  "           wet thresh  "; prtFmt(p, "%3u\n",  m_settings.m_threshWet)
+      <<  "            soak time  "; prtFmt(p, "%3u m\n", m_settings.m_soakMinutes)
+      <<  "     reservoir thresh  "; (m_settings.m_threshReservoir == 0 ? p << "off\n" : prtFmt(p, "%3u\n", m_settings.m_threshReservoir))
+      <<  "----------------------------\n"
+      <<  "   last read humidity  " << m_currentHumidity << "\n"
+      <<  "accumulated pump time  " << m_pump.getTotalEnabledSeconds() << " s\n"
+      <<  "                state  " << getStateString() << "\n"
+      <<  "           iterations  " << m_iterations << "\n"
+      ;
+    return p;
+  }
 protected:
   Print& dbg() const
   {

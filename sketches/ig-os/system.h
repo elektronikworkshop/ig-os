@@ -5,6 +5,8 @@
 #include "water_circuit.h"
 #include "log.h"
 
+#include <climits>
+
 /* https://github.com/arduino-libraries/NTPClient
  * https://github.com/arduino-libraries/NTPClient/blob/master/NTPClient.h
  */
@@ -140,6 +142,13 @@ extern Logger* loggers[NumWaterCircuits + 1];
 void loggerBegin();
 void loggerRun();
 
+namespace history {
+
+  void skipLines(unsigned int& skip, unsigned int& i, const char* buf, unsigned int count);
+  void prtLines(Print& prt, unsigned int& numLines, const char* buf, unsigned int count);
+  bool prt(Print& prt, int start = -1, int end = 0);
+  
+} /* namespace history */
 
 #endif /* #ifndef EW_IG_SYSTEM */
 

@@ -13,6 +13,7 @@ const unsigned int OneWirePin  = D4;
 const unsigned int SensorPowerPin = D4;
 const unsigned int SensorAdcPin   = A0;
 
+const unsigned int TelnetPort = 23
 const unsigned int MaxTelnetClients = 1;
 const unsigned int SizeErrLogBuffer = 2048;
 
@@ -38,6 +39,16 @@ prtFmt(Print& prt, const char *fmt, ... )
   va_end (args);
   prt.print(buf);
   return prt;
+}
+
+inline const char*
+prtFmt(char* buf, size_t buflen, const char *fmt, ... )
+{
+  va_list args;
+  va_start (args, fmt );
+  vsnprintf(buf, buflen, fmt, args);
+  va_end (args);
+  return buf;
 }
 
 template <typename T>

@@ -18,10 +18,6 @@
 
 OneWire oneWireBus(OneWirePin);
 
-#include <climits>
-#include <stdarg.h>
-
-
 class Cli
   : public StreamCmd
 {
@@ -361,94 +357,13 @@ protected:
     }
   }
 
-  void skipLines(unsigned int& skip, unsigned int& i, const char* buf, unsigned int count)
-  {
-    for (; i < count and skip;) {
-      char c = *(buf + i);
-      if (c == '\n') {
-        skip--;
-      }
-      if (not c) {
-        return;
-      }
-      i++;
-    }
-  }
-  void prtLines(unsigned int& numLines, const char* buf, unsigned int count)
-  {
-    for (unsigned int i = 0; i < count and numLines; i++) {
-      char c = *(buf + i);
-      if (not c) {
-        return;
-      }
-      m_stream << c;
-      if (c == '\n') {
-        --numLines;
-        if (numLines == 0) {
-          return;
-        }
-      }
-    }
-  }
   void cmdHist()
   {
-    unsigned int numLinesRequested = 10, skip = 0, n;
-
     int start = 0, end = 0;
     cmdParseInt(start, -1, INT_MAX);
     cmdParseInt(end, -1, INT_MAX);
 
-    /* only count given */
-    if (start and not end) {
-      if (start > 0) {
-        numLinesRequested = start;
-      } else {
-        numLinesRequested = UINT_MAX;
-      }
-    } else if (start and end) {
-      if (start < 0) {
-        m_stream << "<start> can not be negative when requesting a range\n";
-        return;
-      }
-      if (end < 0) {
-        numLinesRequested = UINT_MAX;
-      } else {
-        if (end <= start) {
-          m_stream << "<start> must be smaller than <end>\n";
-          return;
-        }
-        numLinesRequested = end - start + 1;
-      }
-      skip = start;
-    }
-    
-    ErrorLogProxy::BufNfo nfo;
-    Error.getBuffer(nfo);
-
-    n = numLinesRequested;
-
-    m_stream << "----\n";
-    
-    unsigned int i = 0;
-    skipLines(skip, i, nfo.a, nfo.na);
-    if (not skip) {
-      prtLines(n, nfo.a + i, nfo.na - i);
-    }
-    i = 0;
-    if (skip) {
-      skipLines(skip, i, nfo.b, nfo.nb);
-    }
-    if (not skip) {
-      prtLines(n, nfo.b + i, nfo.nb - i);
-    }
-    if (numLinesRequested - n == 0) {
-      m_stream << "history clean\n";
-    } else {
-      m_stream
-        << "----\n"
-        << numLinesRequested - n << " lines\n"
-        ;
-    }
+    history::prt(m_stream, start, end);
   }
   void cmdCircuitTrigger()
   {
@@ -589,31 +504,10 @@ protected:
     }
   }
   
-  void p(const char *fmt, ... )
-  {
-    char buf[128]; // resulting string limited to 128 chars
-    va_list args;
-    va_start (args, fmt );
-    vsnprintf(buf, 128, fmt, args);
-    va_end (args);
-    m_stream.print(buf);
-  }
-  
   void prtCircuitInfo(WaterCircuit* w, int id)
   {
-    m_stream
-      <<  "on-board circuit [" << id << "]:" << (w->getPumpSeconds() == 0 ? " off\n" :  "   on\n")
-      <<  "            pump time  "; prtFmt(m_stream, "%3u s\n", w->getPumpSeconds())
-      <<  "           dry thresh  "; p("%3u\n", w->getThreshDry());       m_stream
-      <<  "           wet thresh  "; p("%3u\n",  w->getThreshWet());      m_stream
-      <<  "            soak time  "; p("%3u m\n", w->getSoakMinutes());   m_stream
-      <<  "     reservoir thresh  "; w->getThreshReservoir() == 0 ? p("off\n") : p("%3u\n", w->getThreshReservoir()); m_stream
-      <<  "----------------------------\n"
-      <<  "   last read humidity  " << w->getHumidity() << "\n"
-      <<  "accumulated pump time  " << w->getPump().getTotalEnabledSeconds() << " s\n"
-      <<  "                state  " << w->getStateString() << "\n"
-      <<  "           iterations  " << w->getNumIterations() << "\n"
-      ;
+    m_stream <<  "on-board circuit [" << id << "]:";
+    w->prt(m_stream);
   }
   
   void cmdCircuitInfo()
@@ -623,11 +517,11 @@ protected:
     if (not cmdParseId(id, w)) {
       id = 1;
       for (WaterCircuit** c = circuits; *c; c++, id++) {
-          prtCircuitInfo(*c, id);
-          if (id != NumWaterCircuits) {
-            m_stream << "\n";
-          }
+        prtCircuitInfo(*c, id);
+        if (id != NumWaterCircuits) {
+          m_stream << "\n";
         }
+      }
       return;
     }
     prtCircuitInfo(w, id);
@@ -1013,7 +907,7 @@ Cli uartCli(Serial);
  * https://github.com/esp8266/Arduino/blob/master/libraries/ESP8266WiFi/examples/WiFiTelnetToSerial/WiFiTelnetToSerial.ino
  */
 
-WiFiServer server(23);
+WiFiServer server(TelnetPort);
 WiFiClient serverClients[MaxTelnetClients];
 
 /* A stream proxy which handles telnet logic and cleans up the stream for

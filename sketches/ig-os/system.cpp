@@ -237,4 +237,93 @@ void loggerRun()
 }
 
 
+namespace history {
+    void skipLines(unsigned int& skip, unsigned int& i, const char* buf, unsigned int count)
+  {
+    for (; i < count and skip;) {
+      char c = *(buf + i);
+      if (c == '\n') {
+        skip--;
+      }
+      if (not c) {
+        return;
+      }
+      i++;
+    }
+  }
+  void prtLines(Print& prt, unsigned int& numLines, const char* buf, unsigned int count)
+  {
+    for (unsigned int i = 0; i < count and numLines; i++) {
+      char c = *(buf + i);
+      if (not c) {
+        return;
+      }
+      prt << c;
+      if (c == '\n') {
+        --numLines;
+        if (numLines == 0) {
+          return;
+        }
+      }
+    }
+  }
+  bool
+  prt(Print& prt, int start, int end)
+  {
+    unsigned int numLinesRequested = 10, skip = 0, n;
+
+    /* only count given */
+    if (start and not end) {
+      if (start > 0) {
+        numLinesRequested = start;
+      } else {
+        numLinesRequested = UINT_MAX;
+      }
+    } else if (start and end) {
+      if (start < 0) {
+        prt << "<start> can not be negative when requesting a range\n";
+        return false;
+      }
+      if (end < 0) {
+        numLinesRequested = UINT_MAX;
+      } else {
+        if (end <= start) {
+          prt << "<start> must be smaller than <end>\n";
+          return false;
+        }
+        numLinesRequested = end - start + 1;
+      }
+      skip = start;
+    }
+    
+    ErrorLogProxy::BufNfo nfo;
+    Error.getBuffer(nfo);
+
+    n = numLinesRequested;
+
+    prt << "----\n";
+    
+    unsigned int i = 0;
+    skipLines(skip, i, nfo.a, nfo.na);
+    if (not skip) {
+      prtLines(prt, n, nfo.a + i, nfo.na - i);
+    }
+    i = 0;
+    if (skip) {
+      skipLines(skip, i, nfo.b, nfo.nb);
+    }
+    if (not skip) {
+      prtLines(prt, n, nfo.b + i, nfo.nb - i);
+    }
+    if (numLinesRequested - n == 0) {
+      prt << "history clean\n";
+    } else {
+      prt
+        << "----\n"
+        << numLinesRequested - n << " lines\n"
+        ;
+    }
+    return true;
+  }
+} /* namespace history */
 

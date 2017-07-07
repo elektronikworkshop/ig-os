@@ -1,5 +1,16 @@
 #include "webserver.h"
 
+/* Important notice to AsyncWebServer and related:
+ *  
+ *  * This is a fully asynchronous server and as such does not run on the loop thread.
+ *  * You can not use yield or delay or any function that uses them inside the callbacks
+ *  * The server is smart enough to know when to close the connection and free resources
+ *  
+ *  Good documentation can be found at:
+ *  
+ *   https://github.com/me-no-dev/ESPAsyncWebServer
+ * 
+ */
 
 Webserver webserver(80, "/events", "/ws");
 
@@ -107,11 +118,55 @@ Webserver::begin()
     request->send(200, "text/plain", "hello world\n");
   });
 
+
+  for (unsigned int i = 0; i < NumWaterCircuits; i++) {
+    char buf[32] = {0};
+    WaterCircuit* c = circuits[i];
+    m_server.on(prtFmt(buf, sizeof(buf), "/circuit/info/%u", i + 1),
+            HTTP_GET,
+            [c, i](AsyncWebServerRequest *request)
+    {
+      AsyncResponseStream *response = request->beginResponseStream("text/plain");
+      Print& s = static_cast<Print&>(*response);
+ 
+      s <<  "on-board circuit [" << i + 1 << "]:";
+      c->prt(s);
+
+      response->addHeader("Server","IntelliGüss Watering Circuit Status");
+      request->send(response);
+    });
+  }
+  
   m_server.on("/circuit/info",
               HTTP_GET,
               [](AsyncWebServerRequest *request)
   {
-    request->send(200, "text/plain", String(ESP.getFreeHeap()));
+    AsyncResponseStream *response = request->beginResponseStream("text/plain");
+    Print& s = static_cast<Print&>(*response);
+
+    unsigned id = 1;
+    for (WaterCircuit** c = circuits; *c; c++, id++) {
+      s <<  "on-board circuit [" << id << "]:";
+      (*c)->prt(s);
+      if (id != NumWaterCircuits) {
+        s << "\n";
+      }
+    }
+    response->addHeader("Server","IntelliGüss Watering Circuit Status");
+    request->send(response);    
+  });
+
+  m_server.on("/errors",
+              HTTP_GET,
+              [](AsyncWebServerRequest *request)
+  {
+    AsyncResponseStream *response = request->beginResponseStream("text/plain");
+    Print& s = static_cast<Print&>(*response);
+
+    history::prt(s);
+    
+    response->addHeader("Server","IntelliGüss Error Log");
+    request->send(response);    
   });
 
   m_server.begin();
