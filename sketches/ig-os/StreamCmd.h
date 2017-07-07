@@ -45,7 +45,9 @@
 class StreamCmd
 {
 public:
-  StreamCmd(Stream& stream, char eolChar = '\n', const char* prompt = NULL);
+  StreamCmd(Stream& stream,
+            char eolChar = '\n',
+            const char* prompt = NULL);
 
   void readSerial();    // Main entry point.
   void clearBuffer();   // Clears the input buffer.

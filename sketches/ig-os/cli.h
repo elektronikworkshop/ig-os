@@ -107,11 +107,12 @@ public:
 
     delay(1000);     // maybe 750ms is enough, maybe not -- we might do a ds.depower() here, but the reset will take care of it.
 
-    uint8_t present = oneWireBus.reset();
+    /* uint8_t present = */
+    oneWireBus.reset();
     oneWireBus.select(addr);    
     oneWireBus.write(0xBE);         // Read Scratchpad
 
-//    m_stream << "P = " << present << "\n";
+    /* m_stream << "P = " << present << "\n"; */
     m_stream << "   scratch: ";
     
     for (int i = 0; i < 9; i++) {           // we need 9 bytes
@@ -142,7 +143,7 @@ public:
         break;
       }
       m_stream << "   address: ";
-      for (int i = 0; i < sizeof(addr); i++) {
+      for (unsigned int i = 0; i < sizeof(addr); i++) {
         char buf[4] = {0};
         sprintf(buf, "%02x", addr[i]);
         m_stream << buf << " ";
@@ -375,7 +376,7 @@ protected:
   }
   void prtLines(unsigned int& numLines, const char* buf, unsigned int count)
   {
-    for (int i = 0; i < count and numLines; i++) {
+    for (unsigned int i = 0; i < count and numLines; i++) {
       char c = *(buf + i);
       if (not c) {
         return;
@@ -507,9 +508,7 @@ protected:
       r.run();
       spi.run();
       adc.run();
-      m_stream << "state: " << r.getState() << "\n";
     }
-    m_stream << "reading adc result... \n";
     auto f = r.read();
     r.disable();
   
@@ -590,7 +589,7 @@ protected:
     }
   }
   
-  void p(char *fmt, ... )
+  void p(const char *fmt, ... )
   {
     char buf[128]; // resulting string limited to 128 chars
     va_list args;
@@ -744,7 +743,7 @@ protected:
     int id;
   
     if (not cmdParseInt(id, 1, NumWaterCircuits)) {
-      for (id = 1; id <= NumWaterCircuits; id++) {
+      for (id = 1; id <= (int)NumWaterCircuits; id++) {
         printLoggerInfo(id);
         if (id != NumWaterCircuits) {
           m_stream << "\n";
@@ -836,13 +835,13 @@ protected:
     
     char* arg = next();
     if (arg == NULL             or
-        strcmp(arg, "off") != 0 and
-        not (strlen(arg) == 5   and
-             isDigit(arg[0])    and
-             isDigit(arg[1])    and
-             arg[2] == ':'      and
-             isDigit(arg[3])    and
-             isDigit(arg[4])))
+        (strcmp(arg, "off") != 0 and
+         not (strlen(arg) == 5   and
+              isDigit(arg[0])    and
+              isDigit(arg[1])    and
+              arg[2] == ':'      and
+              isDigit(arg[3])    and
+              isDigit(arg[4]))))
     {
       m_stream << "time must be of format \"hh:mm\" or \"off\"\n";
       return;
@@ -1103,9 +1102,9 @@ class TelnetCli
 {
 public:
   TelnetCli(WiFiClient& client)
-    : m_client(client)
+    : Cli(m_proxyStream, '\r', flashDataSet.hostName)
+    , m_client(client)
     , m_proxyStream(client)
-    , Cli(m_proxyStream, '\r', flashDataSet.hostName)
   {
     addCommand("quit",   static_cast<CommandCallback>(&TelnetCli::cmdQuit));
   }

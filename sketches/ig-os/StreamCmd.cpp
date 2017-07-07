@@ -33,16 +33,13 @@ StreamCmd::StreamCmd(Stream& stream,
   , commandList(NULL)
   , commandCount(0)
   , m_defaultCallback(NULL)
-  , delim({' ', 0})
+  , delim{' ', 0}
   , term(eolChar)           // default terminator for commands, newline character
   , m_prompt(prompt)
-  , buffer({0})
+  , buffer{0}
   , bufPos(0)
   , last(NULL)
-{
-//  strcpy(delim, " "); // strtok_r needs a null-terminated string
-//  clearBuffer();
-}
+{ }
 
 /**
  * Adds a "command" and a handler function to the list of available commands.

@@ -151,11 +151,12 @@ public:
                Sensor& reservoir,
                Settings& settings)
     : m_id(id)
+    , m_settings(settings)
+    
     , m_sensor(sensor)
     , m_valve(valve)
     , m_pump(pump)
     , m_reservoir(reservoir)
-    , m_settings(settings)
 
     , m_state(StateIdle)
     , m_iterations(0)

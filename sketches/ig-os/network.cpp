@@ -35,6 +35,7 @@ Network::startMdns()
     Serial.println("Error setting up MDNS responder!");
   } else {
     MDNS.addService("telnet", "tcp", 23);
+    Serial << "published host name: " << hostName << "\n";
   }
 }
 
@@ -50,7 +51,7 @@ Network::run()
     case StateConnecting:
       if (WiFi.status() == WL_CONNECTED) {
         Serial
-          << "wifi connected\n"
+          << "wifi connected to " << flashDataSet.wifiSsid << "\n"
           << "signal strength: " << WiFi.RSSI() << " dB\n"
           << "IP:              " << WiFi.localIP() << "\n";
         m_state = StateConnected;
@@ -68,6 +69,7 @@ Network::run()
       if (WiFi.status() != WL_CONNECTED) {
         Serial << "wifi connection lost\n";
         // event...
+        m_state = StateDisconnected;
       }
       break;
   }

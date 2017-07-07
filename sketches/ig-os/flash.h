@@ -67,16 +67,27 @@ struct FlashDataSet // FLASH backed data
 
 extern FlashDataSet flashDataSet;
 
-class FlashMemory
+class FlashMemoryManager
 {
 public:
+/*
+  template<typename T>
+  FlashMemoryManager(T& data)
+    : m_data(&data)
+    , m_len(sizeof(T)
+  {}
+*/
   void begin();
   void update(void);
 private:
+/*
+  void* m_data;
+  const uint16_t m_len;
+*/
   static uint16_t fletcher16( uint8_t* data, int count);
 };
 
-extern FlashMemory flashMemory;
+extern FlashMemoryManager flashMemory;
 
 #endif  /* #define EW_IG_FLASH_H */
 

@@ -57,6 +57,8 @@ void loop()
   switch (systemMode.getMode()) {
     
     case SystemMode::Off:
+    case SystemMode::Manual:
+    case SystemMode::Invalid:
       break;
     
     case SystemMode::Auto:
@@ -64,7 +66,7 @@ void loop()
       bool trigger = wateringDue() or uartCli.isWateringTriggered();
 
       /* Add trigger from telnet clients */
-      for (int i = 0; i < MaxTelnetClients; i++) {
+      for (unsigned int i = 0; i < MaxTelnetClients; i++) {
         trigger = trigger or telnetClis[i].isWateringTriggered();
       }
       
@@ -81,9 +83,6 @@ void loop()
 
       break;
     }
-    
-    case SystemMode::Manual:
-      break;
   }
 
   unsigned long t = millis();

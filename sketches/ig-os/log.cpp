@@ -3,9 +3,9 @@
 #include "system.h"
 
 Logger::Logger(WaterCircuit& circuit, Settings& settings)
-  : m_circuit(circuit)
+  : m_settings(settings)
+  , m_circuit(circuit)
   , m_state(StateIdle)
-  , m_settings(settings)
   , m_previousLogTime(0)
 { }
 
