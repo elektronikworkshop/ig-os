@@ -9,7 +9,8 @@ public:
   typedef enum
   {
     StateIdle = 0,
-    StatePowerUp,
+    StatePoweringUp,
+    StatePowerUpIdle,
     StateAdcSetup,
     StateReady,
   } State;
@@ -22,8 +23,9 @@ public:
     ChReservoir,
   } Channel;
 
-  static const unsigned int msPowerUp  = 1000;
-  static const unsigned int msAdcSetup = 1000;
+  static const unsigned int msPowerUp   =  2000;
+  static const unsigned int msAdcSetup  =  1000;
+  static const unsigned int msPowerDown = 10000;
 
   Adc()
     : m_state(StateIdle)
@@ -42,10 +44,7 @@ public:
     return m_state == StateReady;
   }
   uint16_t read() const;
-  void reset()
-  {
-      changeState(StateIdle);
-  }
+  void reset();
 private:
   void changeState(State newState);
   
