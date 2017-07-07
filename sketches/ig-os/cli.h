@@ -603,7 +603,7 @@ protected:
   {
     m_stream
       <<  "on-board circuit [" << id << "]:" << (w->getPumpSeconds() == 0 ? " off\n" :  "   on\n")
-      <<  "            pump time  "; p("%3u s\n", w->getPumpSeconds());   m_stream
+      <<  "            pump time  "; prtFmt(m_stream, "%3u s\n", w->getPumpSeconds())
       <<  "           dry thresh  "; p("%3u\n", w->getThreshDry());       m_stream
       <<  "           wet thresh  "; p("%3u\n",  w->getThreshWet());      m_stream
       <<  "            soak time  "; p("%3u m\n", w->getSoakMinutes());   m_stream

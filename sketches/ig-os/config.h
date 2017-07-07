@@ -28,6 +28,18 @@ const unsigned int SizeErrLogBuffer = 2048;
 
 template<class T> inline Print &operator <<(Print &obj, T arg) { obj.print(arg); return obj; }
 
+inline Print&
+prtFmt(Print& prt, const char *fmt, ... )
+{
+  char buf[128]; // resulting string limited to 128 chars
+  va_list args;
+  va_start (args, fmt );
+  vsnprintf(buf, 128, fmt, args);
+  va_end (args);
+  prt.print(buf);
+  return prt;
+}
+
 template <typename T>
 inline unsigned int countBits(T value)
 {

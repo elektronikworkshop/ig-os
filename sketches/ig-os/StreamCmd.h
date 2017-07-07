@@ -6,7 +6,7 @@
  * Copyright (C) 2011 Steven Cogswell <steven.cogswell@gmail.com>
  *                    http://husks.wordpress.com
  * 
- * Version 20120522
+ * 
  * 
  * This library is free software: you can redistribute it and/or modify
  * it under the m_eols of the GNU Lesser General Public License as published by

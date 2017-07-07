@@ -1,8 +1,24 @@
-/*
+/** Required libraries:
+ *  
+ * Github:
+ *   ESPAsyncTCP         https://github.com/me-no-dev/ESPAsyncTCP
+ *   ESPAsyncWebServer   https://github.com/me-no-dev/ESPAsyncWebServer
+ * 
+ * Library manager:
+ *   OneWire
+ * 
+ * 
+ * Notes for HUF/EW
+ * 
  * https://github.com/me-no-dev/ESPAsyncWebServer
  * https://developers.google.com/chart/
  * https://diyprojects.io/esp8266-web-server-part-5-add-google-charts-gauges-and-charts/#Add_Google_Charts_to_a_Web_Interface_ESP8266
  * https://github.com/esp8266/Arduino/tree/master/libraries/ESP8266mDNS
+ * 
+ * https://github.com/CuriousTech/ESP8266-HVAC/blob/master/Arduino/eeMem.h
+ *  
+ * consider for later incorporation:
+ * https://github.com/CuriousTech/ESP8266-HVAC/blob/master/Arduino/WiFiManager.h
  * 
  */
 
@@ -11,6 +27,7 @@
 #include "spi.h"
 #include "flash.h"
 #include "network.h"
+#include "webserver.h"
 
 LogProxy<MaxTelnetClients> Log;
 LogProxy<MaxTelnetClients> Debug;//(false);
@@ -26,6 +43,7 @@ void setup()
   
   network.begin();
   timeClient.begin();
+  webserver.begin();
 
   spi.begin();
   adc.begin();
@@ -50,10 +68,8 @@ void loop()
   network.run();
   telnetRun();
 
-  if (network.isConnected()) {
-    timeClient.update();
-  }
-
+  timeClient.update();
+  webserver.run();
   spi.run();
   adc.run();
 
