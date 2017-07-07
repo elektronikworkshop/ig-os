@@ -14,6 +14,10 @@
 #include "flash.h"
 
 
+#include <OneWire.h>
+
+OneWire oneWireBus(OneWirePin);
+
 #include <climits>
 #include <stdarg.h>
 
@@ -59,9 +63,117 @@ public:
     addCommand("n.connect", static_cast<CommandCallback>(&Cli::cmdNetworkConnect));
     addCommand("n.host", static_cast<CommandCallback>(&Cli::cmdNetworkHostName));
     addCommand("n.telnet", static_cast<CommandCallback>(&Cli::cmdNetworkTelnet));
+
+    addCommand("ow", static_cast<CommandCallback>(&Cli::cmdOneWireScan));
   
     setDefaultHandler(static_cast<DefaultCallback>(&Cli::cmdInvalid));
   }
+
+  /* 
+   *  http://playground.arduino.cc/Learning/OneWire
+   *  https://www.pjrc.com/teensy/td_libs_OneWire.html
+   */
+
+  /** 
+   *  https://datasheets.maximintegrated.com/en/ds/DS18B20.pdf
+   *  Scratch pad layout:
+   *    BYTE 0  TEMPERATURE LSB
+   *    BYTE 1  TEMPERATURE MSB
+   *    BYTE 2  TH REGISTER OR USER BYTE 1*
+   *    BYTE 3  TL REGISTER OR USER BYTE 2*
+   *    BYTE 4  CONFIGURATION REGISTER
+   *    BYTE 5  RESERVED 
+   *    BYTE 6  RESERVED
+   *    BYTE 7  RESERVED (10h)
+   *    BYTE 8  CRC*
+   */
+  void readDS18X20(uint8_t* addr)
+  {
+    union DS18X20ScratchPad {
+      uint8_t data[12];
+      struct {
+        uint16_t temp;
+        uint8_t th;
+        uint8_t tl;
+        uint8_t config;
+        uint8_t reserved[3];
+        uint8_t crc;
+      } m;
+    } data;
+    
+    oneWireBus.reset();
+    oneWireBus.select(addr);
+    oneWireBus.write(0x44,1);         // start conversion, with parasite power on at the end
+
+    delay(1000);     // maybe 750ms is enough, maybe not -- we might do a ds.depower() here, but the reset will take care of it.
+
+    uint8_t present = oneWireBus.reset();
+    oneWireBus.select(addr);    
+    oneWireBus.write(0xBE);         // Read Scratchpad
+
+//    m_stream << "P = " << present << "\n";
+    m_stream << "   scratch: ";
+    
+    for (int i = 0; i < 9; i++) {           // we need 9 bytes
+      data.data[i] = oneWireBus.read();
+      char buf[4] = {0};
+      sprintf(buf, "%02x", data.data[i]);
+      m_stream << buf << " ";
+    }
+    m_stream << "\n";
+    uint8_t crc = OneWire::crc8(data.data, 8);
+    if (crc != data.m.crc) {
+      char buf[4] = {0};
+      sprintf(buf, "%02x", crc);
+      m_stream << "crc failed: " << buf << "\n";
+    } else {
+      float t = data.m.temp;
+      t /= 16.;
+      m_stream << "      temp: " << t << " °C\n";
+    }
+  }
+  void cmdOneWireScan()
+  {
+    oneWireBus.reset_search();
+    while (true) {
+      uint8_t addr[8] = {0};
+      if (not oneWireBus.search(addr)) {
+        m_stream << "search done\n";        
+        break;
+      }
+      m_stream << "   address: ";
+      for (int i = 0; i < sizeof(addr); i++) {
+        char buf[4] = {0};
+        sprintf(buf, "%02x", addr[i]);
+        m_stream << buf << " ";
+      }
+      m_stream << "\n";
+
+      if (OneWire::crc8(addr, 7) != addr[7]) {
+        m_stream << "CRC of device address failed!\n";
+        continue;
+      }
+
+      m_stream << "    family: ";
+      
+      switch (addr[0]) {
+        case 0x10:
+          m_stream << "DS18S20\n";
+          readDS18X20(addr);
+          break;
+        case 0x28:
+        case 0x20:
+          m_stream << "DS18B20\n";
+          readDS18X20(addr);
+          break;
+        default:
+          m_stream << "unknown\n";
+          break;        
+      }
+      m_stream << "----\n";
+    }
+  }
+  
   bool isWateringTriggered()
   {
     bool ret = m_cliTrigger;
@@ -851,7 +963,7 @@ protected:
   {
     char* arg = next();
     if (not arg) {
-      m_stream << "the telnet server is \"" << (flashDataSet.telnetEnabled ? "enabled\n" : "disabled\n");
+      m_stream << "the telnet server is " << (flashDataSet.telnetEnabled ? "enabled\n" : "disabled\n");
       return;
     }
 

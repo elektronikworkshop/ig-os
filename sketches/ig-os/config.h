@@ -7,6 +7,8 @@ const unsigned int SpiSckPin   = D5;
 const unsigned int SpiMosiPin  = D7;
 const unsigned int SpiLatchPin = D8;
 
+const unsigned int OneWirePin  = D4;
+
 /** Pin to enable the analog power supply */
 const unsigned int SensorPowerPin = D4;
 const unsigned int SensorAdcPin   = A0;
