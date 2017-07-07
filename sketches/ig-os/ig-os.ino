@@ -20,7 +20,7 @@ void setup()
 {
   Serial.begin(115200);
   Serial.println("");
-  Serial << WelcomeMessage("serial");
+  Serial << "build: " << __DATE__ << " " << __TIME__ << "\n";
 
   flashMemory.begin();
   
@@ -37,6 +37,9 @@ void setup()
   loggerBegin();
 
   pinMode(LED_BUILTIN, OUTPUT);
+
+  // perhaps we print this on network connect/connect-failure? would be more elegant
+  Serial << WelcomeMessage("serial");
 }
 
 

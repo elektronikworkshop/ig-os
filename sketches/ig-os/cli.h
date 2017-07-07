@@ -195,7 +195,7 @@ protected:
   
   bool cmdParseInt(int& num, int min, int max)
   {
-    char* arg = next();
+    const char* arg = next();
     if (arg == NULL) {
       return false;
     }
@@ -209,7 +209,7 @@ protected:
   
   bool cmdParseLong(long& num, long min, long max)
   {
-    char* arg = next();
+    const char* arg = next();
     if (arg == NULL) {
       return false;
     }
@@ -223,7 +223,7 @@ protected:
   
   bool cmdParseFloat(float& num, float min, float max)
   {
-    char* arg = next();
+    const char* arg = next();
     if (arg == NULL) {
       return false;
     }
@@ -340,7 +340,7 @@ protected:
   
   void cmdMode()
   {
-    char* arg = next();
+    const char* arg = next();
     if (arg == NULL) {
       m_stream << F("mode argument missing\n");
       return;
@@ -642,7 +642,7 @@ protected:
       return;
     }
     
-    char* arg = next();
+    const char* arg = next();
     if (arg == NULL) {
       m_stream << "no parameter\n";
       return;
@@ -768,7 +768,7 @@ protected:
       /* Attention: as soon as we have different loggers we have to make sure that we use the right types! */
     ThingSpeakLogger* tsl = static_cast<ThingSpeakLogger*>(loggers[id - 1]);
   
-    char* arg = next();
+    const char* arg = next();
     if (arg == NULL) {
       m_stream << "no parameter\n";
       return;
@@ -791,14 +791,14 @@ protected:
       tsl->setChannelId(chid);
       m_stream << "channel ID set to " << chid << "\n";
     } else if (strcmp(arg, "key") == 0) {
-      char* karg = next();
-        if (karg == NULL) {
-          tsl->setWriteApiKey("");
-          m_stream << "write API key set to \"\"\n";
-        } else {
-          tsl->setWriteApiKey(karg);
-          m_stream << "write API key set to \"" << karg << "\"\n";
-        }
+      const char* karg = next();
+      if (karg == NULL) {
+        tsl->setWriteApiKey("");
+        m_stream << "write API key set to \"\"\n";
+      } else {
+        tsl->setWriteApiKey(karg);
+        m_stream << "write API key set to \"" << karg << "\"\n";
+      }
     } else {
       m_stream << "invalid parameter \"" << arg << "\"\n";
       return;
@@ -833,7 +833,7 @@ protected:
       return;
     }
     
-    char* arg = next();
+    const char* arg = next();
     if (arg == NULL             or
         (strcmp(arg, "off") != 0 and
          not (strlen(arg) == 5   and
@@ -866,6 +866,8 @@ protected:
     if (arg[3] == '0') {
       m = atoi(arg+4);
     } else {
+//      m_proxyStream << flashDataSet.hostName << "> ";
+
       m = atoi(arg+3);
     }
   
@@ -938,7 +940,7 @@ protected:
 
   void cmdNetworkHostName()
   {
-    char* arg = next();
+    const char* arg = next();
     if (not arg) {
       m_stream << "current host name is \"" << flashDataSet.hostName << "\"\n";
       return;
@@ -960,7 +962,7 @@ protected:
 
   void cmdNetworkTelnet()
   {
-    char* arg = next();
+    const char* arg = next();
     if (not arg) {
       m_stream << "the telnet server is " << (flashDataSet.telnetEnabled ? "enabled\n" : "disabled\n");
       return;
@@ -997,8 +999,9 @@ protected:
   }
   void cmdInvalid(const char *command)
   {
-    m_stream
-      << "what do you mean by \"" << command << "\"? try the \"help\" command\n";
+    if (strlen(command)) {
+      m_stream << "what do you mean by \"" << command << "\"? try the \"help\" command\n";
+    }
   }
 
 };
@@ -1100,13 +1103,20 @@ public:
 class TelnetCli
   : public Cli
 {
-public:
+public:  
   TelnetCli(WiFiClient& client)
     : Cli(m_proxyStream, '\r', flashDataSet.hostName)
     , m_client(client)
     , m_proxyStream(client)
   {
+    switchCommandSet(0);
+    
+    /* Add quit command to command set 0 */
     addCommand("quit",   static_cast<CommandCallback>(&TelnetCli::cmdQuit));
+
+    switchCommandSet(1);
+
+    setDefaultHandler(static_cast<DefaultCallback>(&TelnetCli::auth));
   }
   virtual void cmdHelp()
   {
@@ -1115,14 +1125,58 @@ public:
       << "quit\n"
       << "  quit telnet session and close connection\n";
   }
+/*
   TelnetStreamProxy& getStreamProxy()
   {
     return m_proxyStream;
   }
+*/
+  void reset()
+  {
+    /* Also flushes WiFiClient */
+    m_proxyStream.flush();
+    m_client.stop();
+
+    switchCommandSet(1);
+  }
+  void begin()
+  {
+    switchCommandSet(1);
+    
+    m_proxyStream
+      << WelcomeMessage("telnet")
+      << "Please enter password for \"" << flashDataSet.hostName << "\": ";
+      ;
+  }
 private:
+  void auth(const char* arg)
+  {
+    if (strcmp(flashDataSet.telnetPass, arg) == 0) {
+      
+      // TODO: we should find out how we detect connect/disconnect such that we can add and remove us from the proxy
+      auto prterr = [](const char* who)
+      {
+        Error << "failed to add telnet stream proxy to " << who << " logger proxy\n";
+      };
+      if (not Log.addClient(m_proxyStream)) {
+        prterr("default");
+      }
+      if (not Debug.addClient(m_proxyStream)) {
+        prterr("debug");
+      }
+      if (not Error.addClient(m_proxyStream)) {
+        prterr("error");
+      }
+
+      switchCommandSet(0);
+    } else {
+      m_proxyStream << "authentication failed -- wrong password\n";
+      reset();
+    }
+  }
   void cmdQuit()
   {
-    m_client.stop();
+    reset();
   }
   WiFiClient& m_client;
   TelnetStreamProxy m_proxyStream;
@@ -1155,57 +1209,43 @@ void telnetRun()
     }
   }
   
-  /* check if there are any new clients
-   *  
-   */
+  /* Check server for new clients  */
   if (server.hasClient()) {
-    for (uint8_t i = 0; i < MaxTelnetClients; i++) {
-      /* find free/disconnected slot */
-      if (!serverClients[i] or !serverClients[i].connected()) {
-        if (serverClients[i]) {
 
-          serverClients[i].stop();
-          // empty buffers and reset state machines
-          serverClients[i].flush();
-        }
+    /* Find free client object */
+
+    for (uint8_t i = 0; i < MaxTelnetClients; i++) {
+      
+      if (not serverClients[i] or not serverClients[i].connected()) {
 
         Debug << "New telnet client at slot " << i << "\n";
 
+        /* Reset CLI *before* assigning new connection to avoid it being reset immediately */
+        telnetClis[i].reset();
         serverClients[i] = server.available();
-
-        // TODO: we should find out how we detect connect/disconnect such that we can add and remove us from the proxy
-        if (not Log.addClient(telnetClis[i].getStreamProxy())) {
-          Error << "failed to add m_proxyStream to default logger proxy\n";
-        }
-        if (not Debug.addClient(telnetClis[i].getStreamProxy())) {
-          Error << "failed to add m_proxyStream to debug logger proxy\n";
-        }
-        if (not Error.addClient(telnetClis[i].getStreamProxy())) {
-          Error << "failed to add m_proxyStream to error logger proxy\n";
-        }
-
-        serverClients[i]
-          << WelcomeMessage("telnet")
-          << flashDataSet.hostName << "> "
-          ;
+        telnetClis[i].begin();
         
         continue;
       }
     }
-    /* We stop the server client object - if it hasn't been assigned to a slot it will be rejected here.
-     *  
-     */
+    
+    /* Any unused client connections get dumped here ("server rejected ...") */
     WiFiClient serverClient = server.available();
     serverClient.stop();
   }
-  /* check clients for data */
+  
+  /* Process client connections */
   for (uint8_t i = 0; i < MaxTelnetClients; i++) {
     if (serverClients[i] && serverClients[i].connected()) {
       if (serverClients[i].available()) {
-        /* as long as telnet data is avaible we read it and stream it to the CLI */
+        
+        /* As long as client data is avaible we stream
+         * it through the telnet stream proxy to the CLI
+         */
         while (serverClients[i].available()) {
           telnetClis[i].readSerial();
         }
+        
       }
     }
   }

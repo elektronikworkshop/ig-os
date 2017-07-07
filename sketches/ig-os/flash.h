@@ -28,6 +28,7 @@ struct FlashDataSet // FLASH backed data
 
   char                    hostName[MaxHostNameLen + 1];
   bool telnetEnabled;
+  char telnetPass[MaxWifiPassLen + 1];
 
   uint8_t  reserved[32];
   

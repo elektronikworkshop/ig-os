@@ -6,8 +6,8 @@ FlashDataSet flashDataSet =
   sizeof(FlashDataSet),
   0xAAAA,
   
-  "elektronik-workshop",  // router SSID
-  "divisionBy0!",         // router password
+  "",  // router SSID
+  "",  // router password
 
   /* WaterCircuit::Settings waterCircuitSettings[NumWaterCircuits]; */
   {
@@ -57,7 +57,10 @@ FlashDataSet flashDataSet =
   DefaultHostName,
 
   /* telnetEnabled */
-  false,
+  true,
+
+  /* telnetPass */
+  "h4ckm3",
   
   {0} /* reserved */
 

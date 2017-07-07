@@ -23,22 +23,22 @@
  */
 #include "StreamCmd.h"
 
-/**
- * Constructor makes sure some things are set.
- */
+#include <string.h>
+
 StreamCmd::StreamCmd(Stream& stream,
-                     char eolChar,
+                     char eol,
                      const char* prompt)
   : m_stream(stream)
-  , commandList(NULL)
-  , commandCount(0)
-  , m_defaultCallback(NULL)
-  , delim{' ', 0}
-  , term(eolChar)           // default terminator for commands, newline character
+  , m_commandSets{
+    {NULL, 0, NULL},
+    {NULL, 0, NULL}}
+  , m_currentCommandSet(0)
+  , m_delimiter{' ', 0}
+  , m_eol(eol)
   , m_prompt(prompt)
-  , buffer{0}
-  , bufPos(0)
-  , last(NULL)
+  , m_commandLine{0}
+  , m_pos(0)
+  , m_last(NULL)
 { }
 
 /**
@@ -46,19 +46,16 @@ StreamCmd::StreamCmd(Stream& stream,
  * This is used for matching a found token in the buffer, and gives the pointer
  * to the handler function to deal with it.
  */
-void StreamCmd::addCommand(const char *command, CommandCallback commandCallback)
+void
+StreamCmd::addCommand(const char *command,
+                      CommandCallback commandCallback)
 {
-  #ifdef SERIALCOMMAND_DEBUG
-    m_stream.print("Adding command (");
-    m_stream.print(commandCount);
-    m_stream.print("): ");
-    m_stream.println(command);
-  #endif
-
-  commandList = (StreamCmdCallback *) realloc(commandList, (commandCount + 1) * sizeof(StreamCmdCallback));
-  strncpy(commandList[commandCount].command, command, SERIALCOMMAND_MAXCOMMANDLENGTH);
-  commandList[commandCount].commandCallback = commandCallback;
-  commandCount++;
+  auto& count = set().m_commandCount;
+  
+  set().m_commandList = (CommandEntry*) realloc(set().m_commandList, (count + 1) * sizeof(CommandEntry));
+  strncpy(set().m_commandList[count].command, command, MaxCommandSize);
+  set().m_commandList[count].commandCallback = commandCallback;
+  count++;
 }
 
 /**
@@ -67,7 +64,7 @@ void StreamCmd::addCommand(const char *command, CommandCallback commandCallback)
  */
 void StreamCmd::setDefaultHandler(DefaultCallback defaultCallback)
 {
-  m_defaultCallback = defaultCallback;
+  set().m_defaultCallback = defaultCallback;
 }
 
 
@@ -80,88 +77,59 @@ void StreamCmd::readSerial()
 {
   while (m_stream.available() > 0) {
 
-    int data = m_stream.read();
-    if (data == -1) {
+    int raw = m_stream.read();
+    if (raw == -1) {
       break;
     }
-    char inChar = data;
-
-    #ifdef SERIALCOMMAND_DEBUG
-      m_stream.print(inChar);   // Echo back to serial stream
-    #endif
+    char ch = raw;
         
-    if (inChar == term) {     // Check for the terminator (default '\r') meaning end of command
-      #ifdef SERIALCOMMAND_DEBUG
-        m_stream.print("Received: ");
-        m_stream.println(buffer);
-      #endif
+    if (ch == m_eol) {
 
-      char *command = strtok_r(buffer, delim, &last);   // Search for command at start of buffer
-      if (command != NULL) {
+      bool executed = false;
 
-        /* we ignore empty commands */
-        if (strlen(command)) {
-                  
-          boolean matched = false;
-          for (int i = 0; i < commandCount; i++) {
-            #ifdef SERIALCOMMAND_DEBUG
-              m_stream.print("Comparing [");
-              m_stream.print(command);
-              m_stream.print("] to [");
-              m_stream.print(commandList[i].command);
-              m_stream.println("]");
-            #endif
-  
-            // Compare the found command against the list of known commands for a match
-            if (strncmp(command, commandList[i].command, SERIALCOMMAND_MAXCOMMANDLENGTH) == 0) {
-              #ifdef SERIALCOMMAND_DEBUG
-                m_stream.print("Matched Command: ");
-                m_stream.println(command);
-              #endif
-  
-              // Execute the stored handler function for the command
-              (this->*commandList[i].commandCallback)();
-              matched = true;
-              break;
-            }
+      /* tokenize command line */
+      
+      char *command = strtok_r(m_commandLine, m_delimiter, &m_last);
+      
+      if (command) {
+      
+        for (unsigned int i = 0; i < set().m_commandCount; i++) {
+
+          auto& entry = set().m_commandList[i];
+
+          if (strncmp(command, entry.command, MaxCommandSize) == 0) {
+            (this->*entry.commandCallback)();
+            executed = true;
+            break;
           }
-          if (!matched && (m_defaultCallback != NULL)) {
-            (this->*m_defaultCallback)(command);
-          }
-        }
-
-        if (m_prompt) {
-          m_stream.print(m_prompt);
-          m_stream.print("> ");
         }
       }
+
+      if (not executed and set().m_defaultCallback) {
+        (this->*set().m_defaultCallback)(command ? command : "");
+      }
+
+      if (m_prompt) {
+        m_stream.print(m_prompt);
+        m_stream.print("> ");
+      }
+      
       clearBuffer();
-    }
-    else if (isprint(inChar)) {     // Only printable characters into the buffer
-      if (bufPos < SERIALCOMMAND_BUFFER) {
-        buffer[bufPos++] = inChar;  // Put character into buffer
-        buffer[bufPos] = '\0';      // Null terminate
+      
+    } else if (isprint(ch)) {     // Only printable characters into the buffer
+      if (m_pos < CommandBufferSize) {
+        m_commandLine[m_pos++] = ch;  // Put character into buffer
+        m_commandLine[m_pos  ] = '\0';    // Null terminate
       } else {
-        #ifdef SERIALCOMMAND_DEBUG
-          m_stream.println("Line buffer is full - increase SERIALCOMMAND_BUFFER");
-        #endif
+        m_stream.println("StreamCmd line buffer full - increase StreamCmd::CommandBufferSize");
       }
     }
   }
 }
 
-/*
- * Clear the input buffer.
- */
-void StreamCmd::clearBuffer() {
-  buffer[0] = '\0';
-  bufPos = 0;
+const char*
+StreamCmd::next()
+{
+  return strtok_r(NULL, m_delimiter, &m_last);
 }
 
-/**
- * Retrieve the next token ("word" or "argument") from the command buffer.
- * Returns NULL if no more tokens exist.
- */
-char *StreamCmd::next() {
-  return strtok_r(NULL, delim, &last);
-}
