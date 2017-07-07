@@ -13,7 +13,7 @@ const unsigned int OneWirePin  = D4;
 const unsigned int SensorPowerPin = D4;
 const unsigned int SensorAdcPin   = A0;
 
-const unsigned int TelnetPort = 23
+const unsigned int TelnetPort = 23;
 const unsigned int MaxTelnetClients = 1;
 const unsigned int SizeErrLogBuffer = 2048;
 

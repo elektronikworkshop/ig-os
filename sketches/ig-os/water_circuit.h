@@ -127,7 +127,10 @@ private:
 class WaterCircuit
 {
 public:
-  
+  /** When reservoir is empty, recheck its state every 30 minutes.
+   *  If the reservoir is refilled in the meanwhile, watering will continue.
+   */
+  static const unsigned long RecheckReservoirMs = 30UL * 60UL * 1000UL;
   typedef struct
   {
     /** How long the pump should be active between measurements.
@@ -172,7 +175,9 @@ public:
     StateSenseReservoir,
     StateWaitPump,
     StatePump,
-    StateSoak
+    StateSoak,
+
+    StateReservoirEmpty,
   } State;
 
   State getState() const
@@ -183,15 +188,17 @@ public:
   static const char* getStateString(State state)
   {
     switch (state) {
-      case StateIdle: return "idle";
-      case StateWaitSensor: return "wait sensor";
-      case StateSense: return "sense sensor";
-      case StateWaitReservoir: return "wait reservoir";
+      case StateIdle:           return "idle";
+      case StateWaitSensor:     return "wait sensor";
+      case StateSense:          return "sense sensor";
+      case StateWaitReservoir:  return "wait reservoir";
       case StateSenseReservoir: return "sense reservoir";
-      case StateWaitPump: return "wait pump";
-      case StatePump: return "pump";
-      case StateSoak: return "soak";
-      default: return "unknown";
+      case StateWaitPump:       return "wait pump";
+      case StatePump:           return "pump";
+      case StateSoak:           return "soak";
+      case StateReservoirEmpty: return "reservoir empty";
+      
+      default:                  return "unknown";
     }
   }
   
@@ -266,17 +273,20 @@ public:
       case StateSenseReservoir:
         m_reservoir.run();
         if (m_reservoir.getState() == Sensor::StateReady) {
+          
           auto fill = m_reservoir.read();
           m_reservoir.disable();
-          Serial.print("Fill: ");
-          Serial.println(fill);
+          
           if (fill < m_settings.m_threshReservoir) {
+            
+            m_reservoirEmptyMillis = millis();
             m_state = StateIdle;
+            
             dbg() << "reservoir empty, read: " << fill << ", thresh: " << m_settings.m_threshReservoir << ". state: " << getStateString(m_state) << "\n";
             err() << "reservoir empty, read: " << fill << ", thresh: " << m_settings.m_threshReservoir << ". state: " << getStateString(m_state) << "\n";
 
             // TODO: this is the point to generate an alarm
-            
+
           } else {
             m_state = StateWaitPump;
             dbg() << "reservoir ok, read: " << fill << ", thresh: " << m_settings.m_threshReservoir << ". state: wait pump\n";
@@ -305,6 +315,13 @@ public:
           m_state = StateWaitSensor;
           m_iterations++;
           dbg() << "state: " << getStateString(m_state) << "\n";
+        }
+        break;
+
+      case StateReservoirEmpty:
+        if (millis() - m_reservoirEmptyMillis > RecheckReservoirMs) {
+          m_state = StateWaitReservoir;
+          dbg() << "rechecking reservoir after waiting for " << RecheckReservoirMs / 60UL / 1000UL << " minutes, state: " << getStateString(m_state) << "\n";
         }
         break;
     }
@@ -417,6 +434,7 @@ private:
   uint8_t m_iterations;
   uint8_t m_currentHumidity;
   unsigned long m_soakStartMillis;
+  unsigned long m_reservoirEmptyMillis;
 
   /* TODO: statistics */
 };
