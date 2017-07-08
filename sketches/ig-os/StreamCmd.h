@@ -47,7 +47,7 @@ public:
             const char* prompt = NULL);
 
   /** Read the stream and run the CLI engine */
-  void readSerial();
+  void run();
   
   /** Clear input buffer. */
   void clearBuffer()
@@ -63,11 +63,20 @@ protected:
   typedef void(StreamCmd::*CommandCallback)(void);
   typedef void(StreamCmd::*DefaultCallback)(const char*);
 
-  void addCommand(const char *command, CommandCallback commandCallback);  // Add a command to the processing dictionary.
-  void setDefaultHandler(DefaultCallback defaultCallback);   // A handler to call when no valid command received.
+  /** Add a command to the current command set.
+   */
+  void addCommand(const char *command, CommandCallback commandCallback);
 
+  /** Set the default handler of the current command set.
+   */
+  void setDefaultHandler(DefaultCallback defaultCallback);
+
+  /** The stream object on which StreamCmd should operate on.
+   */
   Stream& m_stream;
 
+  /** Switch the command set.
+   */
   bool switchCommandSet(uint8_t set)
   {
     if (set >= NumCommandSets) {
@@ -76,6 +85,9 @@ protected:
     m_currentCommandSet = set;
     return true;
   }
+
+  /** Get the current active command set.
+   */
   uint8_t getCommandSet() const
   {
     return m_currentCommandSet;
@@ -90,6 +102,9 @@ private:
     CommandCallback commandCallback;
   };
 
+  /** Struct representing a command set. Each set features a
+   *  regular command dictionary plus a default command handler. 
+   */
   struct CommandSet
   {
     CommandEntry* m_commandList;
@@ -106,14 +121,19 @@ private:
   uint8_t m_currentCommandSet;
 
 
-  /** Delimiter for tokenizing the command line. Defaults to a single space */
+  /** Delimiter for tokenizing the command line. Defaults to a single space. */
   char m_delimiter[2];
-  char m_eol;     // Character that signals end of command (default '\n')
+  /** The end of line (EOL) character. */
+  char m_eol;
+  /** A user configurable command promt name (host name for instance). */
   const char* m_prompt;
 
-  char m_commandLine[CommandBufferSize + 1]; // Buffer of stored characters while waiting for m_eolinator character
-  uint8_t m_pos;                        // Current position in the command line
-  char *m_last;                         // State variable used by strtok_r during processing
+  /** The command line buffer. */
+  char m_commandLine[CommandBufferSize + 1];
+  /** The current write position in the command line buffer. */
+  uint8_t m_pos;
+  /** strtok_r state variable (stores the previous token position) */
+  char *m_last;
 };
 
 #endif //StreamCmd_h

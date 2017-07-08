@@ -9,12 +9,12 @@
 #include "system.h"
 #include "log.h"
 #include "spi.h"
-#include "adc.h"
 #include "network.h"
 #include "flash.h"
 
 
 #include <OneWire.h>
+#include <Wire.h>
 
 OneWire oneWireBus(OneWirePin);
 
@@ -61,6 +61,7 @@ public:
     addCommand("n.telnet", static_cast<CommandCallback>(&Cli::cmdNetworkTelnet));
 
     addCommand("ow", static_cast<CommandCallback>(&Cli::cmdOneWireScan));
+    addCommand("i2c", static_cast<CommandCallback>(&Cli::cmdI2cScan));
   
     setDefaultHandler(static_cast<DefaultCallback>(&Cli::cmdInvalid));
   }
@@ -169,6 +170,46 @@ public:
       }
       m_stream << "----\n";
     }
+  }
+
+  void cmdI2cScan()
+  {
+    byte error, address;
+    int nDevices;
+   
+    Serial.println("Scanning...");
+   
+    nDevices = 0;
+    for(address = 1; address < 127; address++ )
+    {
+      // The i2c_scanner uses the return value of
+      // the Write.endTransmisstion to see if
+      // a device did acknowledge to the address.
+      Wire.beginTransmission(address);
+      error = Wire.endTransmission();
+   
+      if (error == 0)
+      {
+        Serial.print("I2C device found at address 0x");
+        if (address<16)
+          Serial.print("0");
+        Serial.print(address,HEX);
+        Serial.println("  !");
+   
+        nDevices++;
+      }
+      else if (error==4)
+      {
+        Serial.print("Unknown error at address 0x");
+        if (address<16)
+          Serial.print("0");
+        Serial.println(address,HEX);
+      }    
+    }
+    if (nDevices == 0)
+      Serial.println("No I2C devices found\n");
+    else
+      Serial.println("done\n");
   }
   
   bool isWateringTriggered()
@@ -1136,7 +1177,7 @@ void telnetRun()
          * it through the telnet stream proxy to the CLI
          */
         while (serverClients[i].available()) {
-          telnetClis[i].readSerial();
+          telnetClis[i].run();
         }
         
       }

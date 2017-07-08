@@ -73,7 +73,7 @@ void StreamCmd::setDefaultHandler(DefaultCallback defaultCallback)
  * When the terminator character (default '\n') is seen, it starts parsing the
  * buffer for a prefix command, and calls handlers setup by addCommand() member
  */
-void StreamCmd::readSerial()
+void StreamCmd::run()
 {
   while (m_stream.available() > 0) {
 

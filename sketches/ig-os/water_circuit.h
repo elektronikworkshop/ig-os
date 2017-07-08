@@ -222,8 +222,9 @@ public:
   Print& prt(Print& p) const;
 
 protected:
-  virtual Print& dbg() const = 0;
-  virtual Print& err() const = 0;
+  virtual Print& dbg() const { return Serial; }
+  virtual Print& err() const { return Serial; }
+//  virtual Time& time() const {}
 
 private:
   /** Watering circuit ID */

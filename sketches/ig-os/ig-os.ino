@@ -9,21 +9,28 @@
  * 
  * 
  * Notes for HUF/EW
- * 
  * https://github.com/me-no-dev/ESPAsyncWebServer
  * https://developers.google.com/chart/
  * https://diyprojects.io/esp8266-web-server-part-5-add-google-charts-gauges-and-charts/#Add_Google_Charts_to_a_Web_Interface_ESP8266
  * https://github.com/esp8266/Arduino/tree/master/libraries/ESP8266mDNS
  * 
+ * // nice flash management, configuration AP
  * https://github.com/CuriousTech/ESP8266-HVAC/blob/master/Arduino/eeMem.h
+ *  
+ * http://www.makeuseof.com/tag/how-and-why-to-add-a-real-time-clock-to-arduino/
+ *  
+ * OTA
+ * http://esp8266.github.io/Arduino/versions/2.0.0/doc/ota_updates/ota_updates.html
+ * https://randomnerdtutorials.com/esp8266-ota-updates-with-arduino-ide-over-the-air/
  *  
  * consider for later incorporation:
  * https://github.com/CuriousTech/ESP8266-HVAC/blob/master/Arduino/WiFiManager.h
  * 
  */
 
+//#include <Wire.h>
+
 #include "cli.h"
-#include "adc.h"
 #include "spi.h"
 #include "flash.h"
 #include "network.h"
@@ -38,6 +45,8 @@ void setup()
   Serial.begin(115200);
   Serial.println("");
   Serial << "build: " << __DATE__ << " " << __TIME__ << "\n";
+
+  Wire.begin();
 
   flashMemory.begin();
   
@@ -63,7 +72,7 @@ void setup()
 
 void loop()
 {
-  uartCli.readSerial();
+  uartCli.run();
 
   network.run();
   telnetRun();

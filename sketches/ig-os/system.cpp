@@ -1,5 +1,4 @@
 #include "system.h"
-#include "adc.h"
 #include "spi.h"
 #include "flash.h"
 
@@ -12,8 +11,6 @@ NTPClient timeClient(ntpUDP,
                      2 * 60 * 60, /* offset seconds (zurich) */
                      60000        /* update interval millis  */
                      );
-
-
 
 SystemMode systemMode;
 
