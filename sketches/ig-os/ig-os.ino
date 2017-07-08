@@ -82,11 +82,25 @@ void loop()
     
     case SystemMode::Auto:
     {
-      bool trigger = wateringDue() or uartCli.isWateringTriggered();
+      bool trigger = false;
+      if (wateringDue()) {
+        trigger = true;
+        Log << "watering triggered by scheduler at " << timeClient.getFormattedTime() << "\n";
+      }
+      
+      if (uartCli.isWateringTriggered()) {
+        trigger = true;
+        Log << "watering triggered by CLI at " << timeClient.getFormattedTime() << "\n";
+      }
 
       /* Add trigger from telnet clients */
+      bool tnt = false;
       for (unsigned int i = 0; i < MaxTelnetClients; i++) {
-        trigger = trigger or telnetClis[i].isWateringTriggered();
+        tnt = tnt or telnetClis[i].isWateringTriggered();
+      }
+      if (tnt) {
+        trigger = true;
+        Log << "watering triggered by telnet CLI at " << timeClient.getFormattedTime() << "\n";
       }
       
       for (WaterCircuit** c = circuits; *c; c++) {

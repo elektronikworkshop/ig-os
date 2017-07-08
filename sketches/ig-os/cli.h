@@ -368,7 +368,6 @@ protected:
   void cmdCircuitTrigger()
   {
     m_cliTrigger = true;
-    m_stream << "watering triggered manually\n";  
   }
   
   void cmdCircuitRead()
