@@ -942,7 +942,6 @@ Cli uartCli(Serial);
  */
 
 WiFiServer server(TelnetPort);
-WiFiClient serverClients[MaxTelnetClients];
 
 /* A stream proxy which handles telnet logic and cleans up the stream for
  *  processing downstream.
@@ -957,6 +956,7 @@ private:
   Stream& m_stream;
   uint8_t m_negotiationSequenceIndex;
   bool m_lastWasCarriageReturn;
+  bool m_active;
 public:
   TelnetStreamProxy(Stream& stream)
     : m_stream(stream)
@@ -1032,10 +1032,10 @@ class TelnetCli
   : public Cli
 {
 public:  
-  TelnetCli(WiFiClient& client)
+  TelnetCli()
     : Cli(m_proxyStream, '\r', flashDataSet.hostName)
-    , m_client(client)
-    , m_proxyStream(client)
+    , m_proxyStream(m_client)
+    , m_active(false)
   {
     switchCommandSet(0);
     
@@ -1061,41 +1061,100 @@ public:
 */
   void reset()
   {
+    if (not m_active) {
+      return;
+    }
+    auto prterr = [](const char* who)
+    {
+      Error << "failed to remove telnet stream proxy from " << who << " logger proxy\n";
+    };
+    if (not Log.removeClient(m_proxyStream)) {
+      prterr("default");
+    }
+    if (not Debug.removeClient(m_proxyStream)) {
+      prterr("debug");
+    }
+    if (not Error.removeClient(m_proxyStream)) {
+      prterr("error");
+    }
+
+    if (m_client) {
+      Debug << "telnet connection closed (" << m_client.remoteIP().toString() << ")\n";
+    } else {
+      Debug << "telnet connection closed (unknown IP)\n";
+    }
+    
     /* Also flushes WiFiClient */
     m_proxyStream.flush();
     m_client.stop();
 
     switchCommandSet(1);
+    m_active = false;
   }
-  void begin()
+  void begin(const WiFiClient& client)
   {
-    switchCommandSet(1);
+    if (m_active) {
+      return;
+    }
+
+    m_client = client;
+
+    /* Log before we add client to the logger proxies */
+    Debug << "telnet client connection (" << m_client.remoteIP().toString() << ")\n";
     
+    auto prterr = [](const char* who)
+    {
+      Error << "failed to add telnet stream proxy to " << who << " logger proxy\n";
+    };
+    if (not Log.addClient(m_proxyStream)) {
+      prterr("default");
+    }
+    if (not Debug.addClient(m_proxyStream)) {
+      prterr("debug");
+    }
+    if (not Error.addClient(m_proxyStream)) {
+      prterr("error");
+    }
+    m_active = true;
+    switchCommandSet(1);
     m_proxyStream
       << WelcomeMessage("telnet")
       << "Please enter password for \"" << flashDataSet.hostName << "\": ";
       ;
   }
+
+  virtual void run()
+  {
+    if (not m_client) {
+      if (m_active) {
+        reset();
+      }
+      return;
+    }
+    
+    if (m_client.connected()) {
+      if (m_client.available()) {
+        
+        /* As long as client data is avaible we stream
+         * it through the telnet stream proxy to the CLI
+         */
+        while (m_client.available()) {
+          Cli::run();
+        }          
+      }
+    } else {
+      reset();
+    }
+  }
+
+  bool isConnected()
+  {
+    return m_active;
+  }
 private:
   void auth(const char* arg)
   {
     if (strcmp(flashDataSet.telnetPass, arg) == 0) {
-      
-      // TODO: we should find out how we detect connect/disconnect such that we can add and remove us from the proxy
-      auto prterr = [](const char* who)
-      {
-        Error << "failed to add telnet stream proxy to " << who << " logger proxy\n";
-      };
-      if (not Log.addClient(m_proxyStream)) {
-        prterr("default");
-      }
-      if (not Debug.addClient(m_proxyStream)) {
-        prterr("debug");
-      }
-      if (not Error.addClient(m_proxyStream)) {
-        prterr("error");
-      }
-
       switchCommandSet(0);
     } else {
       m_proxyStream << "authentication failed -- wrong password\n";
@@ -1106,11 +1165,12 @@ private:
   {
     reset();
   }
-  WiFiClient& m_client;
+  WiFiClient m_client;
   TelnetStreamProxy m_proxyStream;
+  bool m_active;
 };
 
-TelnetCli telnetClis[MaxTelnetClients] = {serverClients[0]};
+TelnetCli telnetClis[MaxTelnetClients];
 
 void telnetRun()
 {
@@ -1121,9 +1181,7 @@ void telnetRun()
       
       /* stop clients */
       for (uint8_t i = 0; i < MaxTelnetClients; i++) {
-        if (serverClients[i] && serverClients[i].connected()) {
-          serverClients[i].stop();
-        }
+        telnetClis[i].reset();
       }
       
       server.stop();
@@ -1137,45 +1195,29 @@ void telnetRun()
     }
   }
   
-  /* Check server for new clients  */
+  /* Handle new client connections */
   if (server.hasClient()) {
 
     /* Find free client object */
-
+    bool handled = false;
     for (uint8_t i = 0; i < MaxTelnetClients; i++) {
-      
-      if (not serverClients[i] or not serverClients[i].connected()) {
-
-        Debug << "New telnet client at slot " << i << "\n";
-
-        /* Reset CLI *before* assigning new connection to avoid it being reset immediately */
-        telnetClis[i].reset();
-        serverClients[i] = server.available();
-        telnetClis[i].begin();
-        
-        continue;
+      if (not telnetClis[i].isConnected()) {
+        telnetClis[i].begin(server.available());
+        handled = true;
       }
     }
     
-    /* Any unused client connections get dumped here ("server rejected ...") */
-    WiFiClient serverClient = server.available();
-    serverClient.stop();
+    /* Any unhandled client connections get dumped here ("server rejected ...") */
+    if (not handled) {
+      WiFiClient client = server.available();
+      Debug << "dropping client connection from " << client.remoteIP().toString() << " -- no free client slot\n";
+      client.stop();
+    }
   }
   
   /* Process client connections */
   for (uint8_t i = 0; i < MaxTelnetClients; i++) {
-    if (serverClients[i] && serverClients[i].connected()) {
-      if (serverClients[i].available()) {
-        
-        /* As long as client data is avaible we stream
-         * it through the telnet stream proxy to the CLI
-         */
-        while (serverClients[i].available()) {
-          telnetClis[i].run();
-        }
-        
-      }
-    }
+    telnetClis[i].run();
   }
 }
 

@@ -6,7 +6,10 @@
  */
 #include <ESPAsyncWebServer.h>
 
-
+/* We could use the ESP web server:
+ *  https://github.com/esp8266/Arduino/blob/master/libraries/ESP8266WebServer/src/ESP8266WebServer.h
+ */
+ 
 class Webserver
 {
 public:

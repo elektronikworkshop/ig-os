@@ -3,6 +3,15 @@
 
 #include <Arduino.h>
 
+/* TODO: make use of wifi callbacks!
+ * mDisconnectHandler = WiFi.onStationModeDisconnected(&onDisconnected);
+ *
+ * void onDisconnected(const WiFiEventStationModeDisconnected& event)
+ *  {
+ *      bla bla
+ *  }
+ */
+ 
 class Network
 {
 public:

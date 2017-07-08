@@ -47,7 +47,7 @@ public:
             const char* prompt = NULL);
 
   /** Read the stream and run the CLI engine */
-  void run();
+  virtual void run();
   
   /** Clear input buffer. */
   void clearBuffer()
@@ -56,9 +56,6 @@ public:
     m_pos = 0;
   }
   
-  /** Get next command token */
-  const char *next();
-
 protected:
   typedef void(StreamCmd::*CommandCallback)(void);
   typedef void(StreamCmd::*DefaultCallback)(const char*);
@@ -81,6 +78,9 @@ protected:
   {
     setDefaultHandler(static_cast<DefaultCallback>(m));
   }
+
+  /** Get next command token */
+  const char *next();
 
   /** The stream object on which StreamCmd should operate on.
    */

@@ -40,7 +40,7 @@ LogProxy<MaxTelnetClients> Log;
 LogProxy<MaxTelnetClients> Debug;//(false);
 ErrorLogProxy Error;
 
-Webserver webserver(80);
+//Webserver webserver(80);
 
 void setup()
 {
@@ -80,7 +80,7 @@ void loop()
   telnetRun();
 
   timeClient.update();
-  webserver.run();
+//  webserver.run();
   spi.run();
   adc.run();
 
