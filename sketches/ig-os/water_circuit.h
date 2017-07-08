@@ -145,6 +145,11 @@ public:
     uint8_t m_soakMinutes;
     /** Threshold below which the reservoir should be considered empty. Range 0 .. 255, whereas 0 turns reservoir checking off. */
     uint8_t m_threshReservoir;
+    /** Maximum number of watering cycles after which the watering should return to idle even if we read a dry sensor value.
+     *  This can be useful in case there should be an error with the humidity sensor which would drain the reservoir and
+     *  flood your plant.
+     */
+    uint8_t m_maxIterations;
   } Settings;
   
   WaterCircuit(const unsigned int& id,
@@ -280,9 +285,8 @@ public:
           if (fill < m_settings.m_threshReservoir) {
             
             m_reservoirEmptyMillis = millis();
-            m_state = StateIdle;
+            m_state = StateReservoirEmpty;
             
-            dbg() << "reservoir empty, read: " << fill << ", thresh: " << m_settings.m_threshReservoir << ". state: " << getStateString(m_state) << "\n";
             err() << "reservoir empty, read: " << fill << ", thresh: " << m_settings.m_threshReservoir << ". state: " << getStateString(m_state) << "\n";
 
             // TODO: this is the point to generate an alarm
@@ -312,9 +316,15 @@ public:
         break;
       case StateSoak:
         if ((millis() - m_soakStartMillis) / (60 * 1000) > m_settings.m_soakMinutes) {
-          m_state = StateWaitSensor;
           m_iterations++;
-          dbg() << "state: " << getStateString(m_state) << "\n";
+          if (m_iterations >= m_settings.m_maxIterations) {
+            m_state = StateIdle;
+            err() << "maximum iterations (" << m_settings.m_maxIterations << ") reached -- forcing circuit into state: " << getStateString(m_state) << "\n";
+            dbg() << "keeping your plants from being overflowed :)\n";
+          } else {
+            m_state = StateWaitSensor;
+            dbg() << "state: " << getStateString(m_state) << "\n";
+          }
         }
         break;
 
@@ -409,12 +419,12 @@ public:
 protected:
   Print& dbg() const
   {
-    Debug << "circuit ["<< m_id << "]: ";
+    Debug << "circuit ["<< m_id + 1 << "]: ";
     return Debug;
   }
   Print& err() const
   {
-    Debug << "circuit ["<< m_id << "]: ";
+    Debug << "circuit ["<< m_id + 1 << "]: ";
     return Debug;
   }
 

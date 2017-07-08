@@ -16,25 +16,29 @@ FlashDataSet flashDataSet =
     180,  /* dry 0.6 * 255 (150) -- 0.7 * 255 (180)  */
     230,  /* wet 0.8 * 255 (200) -- 0.9 * 255 (230)  */
       5,  /* soak minutes                            */
-      0}, /* reservoir threshold                     */
+      0,  /* reservoir threshold                     */
+     10}, /* maximum iterations                      */
    /* circuit 2 */
    {  0,  /* pump seconds                            */
     180,  /* dry 0.6 * 255 (150) -- 0.7 * 255 (180)  */
     230,  /* wet 0.8 * 255 (200) -- 0.9 * 255 (230)  */
       5,  /* soak minutes                            */
-      0}, /* reservoir threshold                     */
+      0,  /* reservoir threshold                     */
+     10}, /* maximum iterations                      */
    /* circuit 3 */
    {  0,  /* pump seconds                            */
     180,  /* dry 0.6 * 255 (150) -- 0.7 * 255 (180)  */
     230,  /* wet 0.8 * 255 (200) -- 0.9 * 255 (230)  */
       5,  /* soak minutes                            */
-      0}, /* reservoir threshold                     */
+      0,  /* reservoir threshold                     */
+     10}, /* maximum iterations                      */
    /* circuit 4 */
    {  0,  /* pump seconds                            */
     180,  /* dry 0.6 * 255 (150) -- 0.7 * 255 (180)  */
     230,  /* wet 0.8 * 255 (200) -- 0.9 * 255 (230)  */
       5,  /* soak minutes                            */
-      0}, /* reservoir threshold                     */
+      0,  /* reservoir threshold                     */
+     10}, /* maximum iterations                      */
   },
 
   {{6, 0},
@@ -42,15 +46,16 @@ FlashDataSet flashDataSet =
    {SchedulerTime::InvalidHour, 0},
    {SchedulerTime::InvalidHour, 0},
    {SchedulerTime::InvalidHour, 0},
+   {SchedulerTime::InvalidHour, 0},
    {20, 0},
-   {22, 0}
+   {22, 0},
   },
 
   /* interval (minutes), channel ID, write API key */
   {{{0}, 0, ""},
    {{0}, 0, ""},
    {{0}, 0, ""},
-   {{0}, 0, ""}
+   {{0}, 0, ""},
   },
 
   /* hostName */
@@ -62,40 +67,7 @@ FlashDataSet flashDataSet =
   /* telnetPass */
   "h4ckm3",
   
-  {0} /* reserved */
-
-#if 0
-  {820, 850},   // 79.0, 82.0 default cool temps
-  {730, 750},   // default heat temps
-  {30, 17},     // cycleThresh (cool 3.0, heat 1.7)
-  0,            // Mode
-  30,           // heatThresh (under 30F is gas)
-  60*2,         // 2 mins minimum for a cycle
-  60*25,        // 25 minutes maximun for a cycle
-  60*5,         // idleMin 5 minutes minimum between cycles
-  0,            // filterMinutes
-  {60, 120},    // fanPostDelay {cool, HP}
-  {60, 60},     // fanPreTime {cool, HP}
-  60*10,        // 10 mins default for override
-  0,            // heatMode
-  -5,           // timeZone
-  0,            // temp reading offset adjust
-  0,            // humidMode
-  {450, 550},   // rhLevel 45.0%, 55%
-  {40, -40},    // awayDelta cool, heat
-  9*60,         // awayTime (minutes)
-  30*60,        // fanCycleTime 30 mins
-  192 | (168<<8) | (105<<24), // hostIp 192.168.0.105
-  85,           // host port
-  "41042",      // zipCode
-  "password",  // password for controlling thermostat
-  false,        // bLock
-  false,        // bNotLocal
-  14543,        // price per KWH in cents / 10000 (0.145)
-    700,        // nat gas cost per cubic foot in cents / 100 (0.70)
-  46,           // forecast range for in mapping to out mix/max (5, but 3 can be better)
-  46,           // forecast range for display (5 of 7 day max)
-#endif
+//  {0} /* reserved */
 };
 
 FlashMemoryManager flashMemory;
