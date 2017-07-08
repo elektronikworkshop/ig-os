@@ -180,6 +180,25 @@ private:
   Spi::Valve m_valve;
 };
 
+class TheWaterCircuit
+  : public WaterCircuit
+{
+public:
+  using WaterCircuit::WaterCircuit;
+
+protected:
+  virtual Print& dbg() const
+  {
+    Debug << "circuit ["<< getId() + 1 << "]: ";
+    return Debug;
+  }
+  virtual Print& err() const
+  {
+    Debug << "circuit ["<< getId() + 1 << "]: ";
+    return Debug;
+  }
+};
+
 /* Humidity read:
  *  
  * 63.15
@@ -199,10 +218,10 @@ OnboardValve valve1(Spi::Valve2);
 OnboardValve valve2(Spi::Valve3);
 OnboardValve valve3(Spi::Valve4);
 
-WaterCircuit circuit0(0, sensor0, valve0, pump, reservoir, flashDataSet.waterCircuitSettings[0]);
-WaterCircuit circuit1(1, sensor1, valve1, pump, reservoir, flashDataSet.waterCircuitSettings[1]);
-WaterCircuit circuit2(2, sensor2, valve2, pump, reservoir, flashDataSet.waterCircuitSettings[2]);
-WaterCircuit circuit3(3, sensor3, valve3, pump, reservoir, flashDataSet.waterCircuitSettings[3]);
+TheWaterCircuit circuit0(0, sensor0, valve0, pump, reservoir, flashDataSet.waterCircuitSettings[0]);
+TheWaterCircuit circuit1(1, sensor1, valve1, pump, reservoir, flashDataSet.waterCircuitSettings[1]);
+TheWaterCircuit circuit2(2, sensor2, valve2, pump, reservoir, flashDataSet.waterCircuitSettings[2]);
+TheWaterCircuit circuit3(3, sensor3, valve3, pump, reservoir, flashDataSet.waterCircuitSettings[3]);
 
 WaterCircuit* circuits[NumWaterCircuits + 1] = {&circuit0, &circuit1, &circuit2, &circuit3, NULL};
 
