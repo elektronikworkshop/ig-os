@@ -67,9 +67,20 @@ protected:
    */
   void addCommand(const char *command, CommandCallback commandCallback);
 
+  template <typename T>
+  void addCommand(const char *command, void(T::*m)(void))
+  {
+    addCommand(command, static_cast<CommandCallback>(m));
+  }
+
   /** Set the default handler of the current command set.
    */
   void setDefaultHandler(DefaultCallback defaultCallback);
+  template <typename T>
+  void setDefaultHandler(void(T::*m)(const char*))
+  {
+    setDefaultHandler(static_cast<DefaultCallback>(m));
+  }
 
   /** The stream object on which StreamCmd should operate on.
    */

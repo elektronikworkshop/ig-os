@@ -31,39 +31,39 @@ public:
     : StreamCmd(stream, eolChar, prompt)
     , m_cliTrigger(false)
   {
-    addCommand("help",   static_cast<CommandCallback>(&Cli::cmdHelp));
-    addCommand("time",   static_cast<CommandCallback>(&Cli::cmdTime));
-    addCommand("mode",   static_cast<CommandCallback>(&Cli::cmdMode));
-    addCommand("hist",   static_cast<CommandCallback>(&Cli::cmdHist));
+    addCommand("help",   &Cli::cmdHelp);
+    addCommand("time",   &Cli::cmdTime);
+    addCommand("mode",   &Cli::cmdMode);
+    addCommand("hist",   &Cli::cmdHist);
     
-    addCommand("c.trig",  static_cast<CommandCallback>(&Cli::cmdCircuitTrigger));
-    addCommand("c.read",  static_cast<CommandCallback>(&Cli::cmdCircuitRead));
-    addCommand("c.res",   static_cast<CommandCallback>(&Cli::cmdCircuitReservoir));
-    addCommand("c.pump",  static_cast<CommandCallback>(&Cli::cmdCircuitPump));
-    addCommand("c.valve", static_cast<CommandCallback>(&Cli::cmdCircuitValve));
-    addCommand("c.info",  static_cast<CommandCallback>(&Cli::cmdCircuitInfo));
-    addCommand("c.set",   static_cast<CommandCallback>(&Cli::cmdCircuitSet));
-    addCommand("c.stop",  static_cast<CommandCallback>(&Cli::cmdCircuitStop));
+    addCommand("c.trig",  &Cli::cmdCircuitTrigger);
+    addCommand("c.read",  &Cli::cmdCircuitRead);
+    addCommand("c.res",   &Cli::cmdCircuitReservoir);
+    addCommand("c.pump",  &Cli::cmdCircuitPump);
+    addCommand("c.valve", &Cli::cmdCircuitValve);
+    addCommand("c.info",  &Cli::cmdCircuitInfo);
+    addCommand("c.set",   &Cli::cmdCircuitSet);
+    addCommand("c.stop",  &Cli::cmdCircuitStop);
   
-    addCommand("l.trig",  static_cast<CommandCallback>(&Cli::cmdLogTrigger));
-    addCommand("l.info",  static_cast<CommandCallback>(&Cli::cmdLogInfo));
-    addCommand("l.set",   static_cast<CommandCallback>(&Cli::cmdLogSet));
+    addCommand("l.trig",  &Cli::cmdLogTrigger);
+    addCommand("l.info",  &Cli::cmdLogInfo);
+    addCommand("l.set",   &Cli::cmdLogSet);
   
-    addCommand("s.info",  static_cast<CommandCallback>(&Cli::cmdSchedulerInfo));
-    addCommand("s.set",   static_cast<CommandCallback>(&Cli::cmdSchedulerSet));
+    addCommand("s.info",  &Cli::cmdSchedulerInfo);
+    addCommand("s.set",   &Cli::cmdSchedulerSet);
   
-    addCommand("n.rssi",    static_cast<CommandCallback>(&Cli::cmdNetworkRssi));
-    addCommand("n.list",    static_cast<CommandCallback>(&Cli::cmdNetworkList));
-    addCommand("n.ssid",    static_cast<CommandCallback>(&Cli::cmdNetworkSsid));
-    addCommand("n.pass",    static_cast<CommandCallback>(&Cli::cmdNetworkPass));
-    addCommand("n.connect", static_cast<CommandCallback>(&Cli::cmdNetworkConnect));
-    addCommand("n.host", static_cast<CommandCallback>(&Cli::cmdNetworkHostName));
-    addCommand("n.telnet", static_cast<CommandCallback>(&Cli::cmdNetworkTelnet));
+    addCommand("n.rssi",    &Cli::cmdNetworkRssi);
+    addCommand("n.list",    &Cli::cmdNetworkList);
+    addCommand("n.ssid",    &Cli::cmdNetworkSsid);
+    addCommand("n.pass",    &Cli::cmdNetworkPass);
+    addCommand("n.connect", &Cli::cmdNetworkConnect);
+    addCommand("n.host", &Cli::cmdNetworkHostName);
+    addCommand("n.telnet", &Cli::cmdNetworkTelnet);
 
-    addCommand("ow", static_cast<CommandCallback>(&Cli::cmdOneWireScan));
-    addCommand("i2c", static_cast<CommandCallback>(&Cli::cmdI2cScan));
+    addCommand("ow", &Cli::cmdOneWireScan);
+    addCommand("i2c", &Cli::cmdI2cScan);
   
-    setDefaultHandler(static_cast<DefaultCallback>(&Cli::cmdInvalid));
+    setDefaultHandler(&Cli::cmdInvalid);
   }
 
   /* 
@@ -1046,11 +1046,11 @@ public:
     switchCommandSet(0);
     
     /* Add quit command to command set 0 */
-    addCommand("quit",   static_cast<CommandCallback>(&TelnetCli::cmdQuit));
+    addCommand("quit",   &TelnetCli::cmdQuit);
 
     switchCommandSet(1);
 
-    setDefaultHandler(static_cast<DefaultCallback>(&TelnetCli::auth));
+    setDefaultHandler(&TelnetCli::auth);
   }
   virtual void cmdHelp()
   {
