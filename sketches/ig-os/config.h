@@ -10,7 +10,7 @@ const unsigned int SpiLatchPin = D8;
 const unsigned int OneWirePin  = D4;
 
 /** Pin to enable the analog power supply */
-const unsigned int SensorPowerPin = D4;
+const unsigned int SensorPowerPin = D6;
 const unsigned int SensorAdcPin   = A0;
 
 const unsigned int TelnetPort = 23;
