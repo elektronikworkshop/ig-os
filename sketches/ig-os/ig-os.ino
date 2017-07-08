@@ -40,6 +40,8 @@ LogProxy<MaxTelnetClients> Log;
 LogProxy<MaxTelnetClients> Debug;//(false);
 ErrorLogProxy Error;
 
+Webserver webserver(80);
+
 void setup()
 {
   Serial.begin(115200);
@@ -52,7 +54,7 @@ void setup()
   
   network.begin();
   timeClient.begin();
-  webserver.begin();
+//  webserver.begin();
 
   spi.begin();
   adc.begin();

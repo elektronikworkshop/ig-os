@@ -177,7 +177,7 @@ public:
     byte error, address;
     int nDevices;
    
-    Serial.println("Scanning...");
+    m_stream << "scanning for i2c devices ...\n";
    
     nDevices = 0;
     for(address = 1; address < 127; address++ )
@@ -188,28 +188,22 @@ public:
       Wire.beginTransmission(address);
       error = Wire.endTransmission();
    
-      if (error == 0)
-      {
-        Serial.print("I2C device found at address 0x");
-        if (address<16)
-          Serial.print("0");
-        Serial.print(address,HEX);
-        Serial.println("  !");
+      if (not error) {
+        m_stream << "I2C device found at address ";
+        prtFmt(m_stream, "0x%2x\n", address);
    
         nDevices++;
       }
-      else if (error==4)
-      {
-        Serial.print("Unknown error at address 0x");
-        if (address<16)
-          Serial.print("0");
-        Serial.println(address,HEX);
+      else if (error==4) {
+        m_stream << "unknown error at address ";
+        prtFmt(m_stream, "0x%2x\n", address);
       }    
     }
-    if (nDevices == 0)
-      Serial.println("No I2C devices found\n");
-    else
-      Serial.println("done\n");
+    if (nDevices == 0) {
+      m_stream << "No I2C devices found\n";
+    } else {
+      m_stream << "done\n";
+    }
   }
   
   bool isWateringTriggered()

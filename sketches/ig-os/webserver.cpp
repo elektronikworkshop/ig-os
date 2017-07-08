@@ -12,15 +12,10 @@
  * 
  */
 
-Webserver webserver(80, "/events", "/ws");
-
-
-Webserver::Webserver(uint16_t port,
-                     const char* eventPath,
-                     const char* webSocketPath)
+Webserver::Webserver(uint16_t port)
   : m_server(port)
-  , m_events(eventPath)
-  , m_websocket(webSocketPath)
+  , m_events("/events")
+  , m_websocket("/ws")
 {
   
 }

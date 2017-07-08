@@ -10,9 +10,7 @@
 class Webserver
 {
 public:
-  Webserver(uint16_t port,
-            const char* eventPath = "/events",
-            const char* webSocketPath = "/ws");
+  Webserver(uint16_t port);
   void begin();
   void run();
 private:
@@ -29,8 +27,6 @@ private:
   AsyncEventSource m_events;
   AsyncWebSocket m_websocket;
 };
-
-extern Webserver webserver;
 
 #if 0
 /** std::mutex isn't currently available, so we have to cook something on our own. */
