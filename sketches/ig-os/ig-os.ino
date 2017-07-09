@@ -67,8 +67,7 @@ void setup()
 
   pinMode(LED_BUILTIN, OUTPUT);
 
-  // perhaps we print this on network connect/connect-failure? would be more elegant
-  Serial << WelcomeMessage("serial");
+  Debug << "number of registered commands: " << uartCli.getNumCommandsRegistered(0) << "\n";
 }
 
 

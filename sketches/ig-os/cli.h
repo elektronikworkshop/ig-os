@@ -1,11 +1,6 @@
+#ifndef EW_IG_CLI_H
+#define EW_IG_CLI_H
 
-#include <ESP8266WiFi.h>
-
-/* https://github.com/kroimon/Arduino-SerialCommand
- * https://github.com/kroimon/Arduino-SerialCommand/blob/master/examples/SerialCommandExample/SerialCommandExample.pde
- * https://playground.arduino.cc/Main/StreamingOutput
- */
-#include "StreamCmd.h"
 #include "system.h"
 #include "log.h"
 #include "spi.h"
@@ -13,13 +8,18 @@
 #include "flash.h"
 
 
+#include <StreamCmd.h>
 #include <OneWire.h>
 #include <Wire.h>
 
 OneWire oneWireBus(OneWirePin);
 
+
 class Cli
-  : public StreamCmd
+  : public StreamCmd<32, /* _CommandBufferSize */
+                      8, /* _MaxCommandSize    */
+                     32, /* _MaxCommands       */
+                      2> /* _NumCommandSets    */
 {
 private:
   bool m_cliTrigger;
@@ -31,37 +31,39 @@ public:
     : StreamCmd(stream, eolChar, prompt)
     , m_cliTrigger(false)
   {
-    addCommand("help",   &Cli::cmdHelp);
-    addCommand("time",   &Cli::cmdTime);
-    addCommand("mode",   &Cli::cmdMode);
-    addCommand("hist",   &Cli::cmdHist);
+    /* WARNING: Due to the static nature of StreamCmd any overflow of the command list will go unnoticed, since this object is initialized in global scope.
+     */
+    addCommand("help",      &Cli::cmdHelp);
+    addCommand("time",      &Cli::cmdTime);
+    addCommand("mode",      &Cli::cmdMode);
+    addCommand("hist",      &Cli::cmdHist);
     
-    addCommand("c.trig",  &Cli::cmdCircuitTrigger);
-    addCommand("c.read",  &Cli::cmdCircuitRead);
-    addCommand("c.res",   &Cli::cmdCircuitReservoir);
-    addCommand("c.pump",  &Cli::cmdCircuitPump);
-    addCommand("c.valve", &Cli::cmdCircuitValve);
-    addCommand("c.info",  &Cli::cmdCircuitInfo);
-    addCommand("c.set",   &Cli::cmdCircuitSet);
-    addCommand("c.stop",  &Cli::cmdCircuitStop);
+    addCommand("c.trig",    &Cli::cmdCircuitTrigger);
+    addCommand("c.read",    &Cli::cmdCircuitRead);
+    addCommand("c.res",     &Cli::cmdCircuitReservoir);
+    addCommand("c.pump",    &Cli::cmdCircuitPump);
+    addCommand("c.valve",   &Cli::cmdCircuitValve);
+    addCommand("c.info",    &Cli::cmdCircuitInfo);
+    addCommand("c.set",     &Cli::cmdCircuitSet);
+    addCommand("c.stop",    &Cli::cmdCircuitStop);
+
+    addCommand("l.trig",    &Cli::cmdLogTrigger);
+    addCommand("l.info",    &Cli::cmdLogInfo);
+    addCommand("l.set",     &Cli::cmdLogSet);
   
-    addCommand("l.trig",  &Cli::cmdLogTrigger);
-    addCommand("l.info",  &Cli::cmdLogInfo);
-    addCommand("l.set",   &Cli::cmdLogSet);
-  
-    addCommand("s.info",  &Cli::cmdSchedulerInfo);
-    addCommand("s.set",   &Cli::cmdSchedulerSet);
+    addCommand("s.info",    &Cli::cmdSchedulerInfo);
+    addCommand("s.set",     &Cli::cmdSchedulerSet);
   
     addCommand("n.rssi",    &Cli::cmdNetworkRssi);
     addCommand("n.list",    &Cli::cmdNetworkList);
     addCommand("n.ssid",    &Cli::cmdNetworkSsid);
     addCommand("n.pass",    &Cli::cmdNetworkPass);
     addCommand("n.connect", &Cli::cmdNetworkConnect);
-    addCommand("n.host", &Cli::cmdNetworkHostName);
-    addCommand("n.telnet", &Cli::cmdNetworkTelnet);
+    addCommand("n.host",    &Cli::cmdNetworkHostName);
+    addCommand("n.telnet",  &Cli::cmdNetworkTelnet);
 
-    addCommand("ow", &Cli::cmdOneWireScan);
-    addCommand("i2c", &Cli::cmdI2cScan);
+    addCommand("ow",        &Cli::cmdOneWireScan);
+    addCommand("i2c",       &Cli::cmdI2cScan);
   
     setDefaultHandler(&Cli::cmdInvalid);
   }
@@ -109,25 +111,25 @@ public:
     oneWireBus.select(addr);    
     oneWireBus.write(0xBE);         // Read Scratchpad
 
-    /* m_stream << "P = " << present << "\n"; */
-    m_stream << "   scratch: ";
+    /* stream() << "P = " << present << "\n"; */
+    stream() << "   scratch: ";
     
     for (int i = 0; i < 9; i++) {           // we need 9 bytes
       data.data[i] = oneWireBus.read();
       char buf[4] = {0};
       sprintf(buf, "%02x", data.data[i]);
-      m_stream << buf << " ";
+      stream() << buf << " ";
     }
-    m_stream << "\n";
+    stream() << "\n";
     uint8_t crc = OneWire::crc8(data.data, 8);
     if (crc != data.m.crc) {
       char buf[4] = {0};
       sprintf(buf, "%02x", crc);
-      m_stream << "crc failed: " << buf << "\n";
+      stream() << "crc failed: " << buf << "\n";
     } else {
       float t = data.m.temp;
       t /= 16.;
-      m_stream << "      temp: " << t << " °C\n";
+      stream() << "      temp: " << t << " °C\n";
     }
   }
   void cmdOneWireScan()
@@ -136,39 +138,39 @@ public:
     while (true) {
       uint8_t addr[8] = {0};
       if (not oneWireBus.search(addr)) {
-        m_stream << "search done\n";        
+        stream() << "search done\n";        
         break;
       }
-      m_stream << "   address: ";
+      stream() << "   address: ";
       for (unsigned int i = 0; i < sizeof(addr); i++) {
         char buf[4] = {0};
         sprintf(buf, "%02x", addr[i]);
-        m_stream << buf << " ";
+        stream() << buf << " ";
       }
-      m_stream << "\n";
+      stream() << "\n";
 
       if (OneWire::crc8(addr, 7) != addr[7]) {
-        m_stream << "CRC of device address failed!\n";
+        stream() << "CRC of device address failed!\n";
         continue;
       }
 
-      m_stream << "    family: ";
+      stream() << "    family: ";
       
       switch (addr[0]) {
         case 0x10:
-          m_stream << "DS18S20\n";
+          stream() << "DS18S20\n";
           readDS18X20(addr);
           break;
         case 0x28:
         case 0x20:
-          m_stream << "DS18B20\n";
+          stream() << "DS18B20\n";
           readDS18X20(addr);
           break;
         default:
-          m_stream << "unknown\n";
+          stream() << "unknown\n";
           break;        
       }
-      m_stream << "----\n";
+      stream() << "----\n";
     }
   }
 
@@ -177,7 +179,7 @@ public:
     byte error, address;
     int nDevices;
    
-    m_stream << "scanning for i2c devices ...\n";
+    stream() << "scanning for i2c devices ...\n";
    
     nDevices = 0;
     for(address = 1; address < 127; address++ )
@@ -189,20 +191,20 @@ public:
       error = Wire.endTransmission();
    
       if (not error) {
-        m_stream << "I2C device found at address ";
-        prtFmt(m_stream, "0x%2x\n", address);
+        stream() << "I2C device found at address ";
+        prtFmt(stream(), "0x%2x\n", address);
    
         nDevices++;
       }
       else if (error==4) {
-        m_stream << "unknown error at address ";
-        prtFmt(m_stream, "0x%2x\n", address);
+        stream() << "unknown error at address ";
+        prtFmt(stream(), "0x%2x\n", address);
       }    
     }
     if (nDevices == 0) {
-      m_stream << "No I2C devices found\n";
+      stream() << "No I2C devices found\n";
     } else {
-      m_stream << "done\n";
+      stream() << "done\n";
     }
   }
   
@@ -214,74 +216,24 @@ public:
   }
   
 protected:  
-/* helper functions */
-
-  void prtTwoDigit(int num)
-  {
-    if (num < 10) {
-      m_stream << "0";
-    }
-    m_stream << num;
-  }
   
-  bool cmdParseInt(int& num, int min, int max)
+  GetResult getId(int& id, WaterCircuit*& w)
   {
-    const char* arg = next();
-    if (arg == NULL) {
-      return false;
-    }
-    int _num = atoi(arg);
-    if (_num < min or _num > max) {
-      return false;
-    }
-    num = _num;
-    return true;
-  }
-  
-  bool cmdParseLong(long& num, long min, long max)
-  {
-    const char* arg = next();
-    if (arg == NULL) {
-      return false;
-    }
-    long _num = atol(arg);
-    if (_num < min or _num > max) {
-      return false;
-    }
-    num = _num;
-    return true;
-  }
-  
-  bool cmdParseFloat(float& num, float min, float max)
-  {
-    const char* arg = next();
-    if (arg == NULL) {
-      return false;
-    }
-    float _num = atof(arg);
-    if (_num < min or _num > max) {
-      return false;
-    }
-    num = _num;
-    return true;
-  }
-  
-  bool cmdParseId(int& id, WaterCircuit*& w)
-  {
-    if (not cmdParseInt(id, 1, NumWaterCircuits)) {
-      return false;
+    auto r = getInt(id, 1, NumWaterCircuits);
+    if (r != ArgOk) {
+      return r;
     }
     
     w = circuits[id - 1];
   
-    return true;
+    return r;
   }
   
   /* Serial command interface */
   
   virtual void cmdHelp()
   {
-    m_stream.print(F(
+    stream().print(F(
       "----------------\n"
       "help\n"
       "  print this help\n"
@@ -366,20 +318,20 @@ protected:
   
   void cmdTime()
   {
-    m_stream << "current time: " << timeClient.getFormattedTime() << "\n";
+    stream() << "current time: " << timeClient.getFormattedTime() << "\n";
   }
   
   void cmdMode()
   {
     const char* arg = next();
     if (arg == NULL) {
-      m_stream << F("mode argument missing\n");
+      stream() << F("mode argument missing\n");
       return;
     }
     
     SystemMode::Mode newMode = SystemMode::str2Mode(arg);
     if (newMode == SystemMode::Invalid) {
-      m_stream << F("invalid mode argument \"") << arg << F("\" -- allowed are: <off, auto, man>\n");
+      stream() << F("invalid mode argument \"") << arg << F("\" -- allowed are: <off, auto, man>\n");
       return;
     }
   
@@ -387,7 +339,7 @@ protected:
         for (unsigned int i = 0; i < NumWaterCircuits; i++) {
           circuits[i]->reset();
         }
-        m_stream << "system mode switched to \"" << arg << "\"\n";
+        stream() << "system mode switched to \"" << arg << "\"\n";
         systemMode.setMode(newMode);
     }
   }
@@ -395,10 +347,10 @@ protected:
   void cmdHist()
   {
     int start = 0, end = 0;
-    cmdParseInt(start, -1, INT_MAX);
-    cmdParseInt(end, -1, INT_MAX);
+    getInt(start, -1, INT_MAX);
+    getInt(end, -1, INT_MAX);
 
-    history::prt(m_stream, start, end);
+    history::prt(stream(), start, end);
   }
   void cmdCircuitTrigger()
   {
@@ -409,15 +361,15 @@ protected:
   {
     int id;
     WaterCircuit* w;
-    if (not cmdParseId(id, w)) {
-      m_stream << "invalid index\n";
+    if (getId(id, w) != ArgOk) {
+      stream() << "invalid index\n";
       return;
     }
     
     Sensor& s = w->getSensor();
     
     if (s.getState() != Sensor::StateIdle) {
-      m_stream << "sensor is currently active, try again later\n";
+      stream() << "sensor is currently active, try again later\n";
       return;
     }
     
@@ -431,7 +383,7 @@ protected:
     auto h = s.read();
     s.disable();
   
-    m_stream << "humidity of " << id << " is " << h << "/255\n";
+    stream() << "humidity of " << id << " is " << h << "/255\n";
   }
   
   // TODO: mostly same code as "read" -> combine somehow
@@ -439,15 +391,15 @@ protected:
   {
     int id;
     WaterCircuit* w;
-    if (not cmdParseId(id, w)) {
-      m_stream << "invalid index\n";
+    if (getId(id, w) != ArgOk) {
+      stream() << "invalid index\n";
       return;
     }
     
     Sensor& r = w->getReservoir();
     
     if (r.getState() != Sensor::StateIdle) {
-      m_stream << "reservoir sensor is currently busy, try again later\n";
+      stream() << "reservoir sensor is currently busy, try again later\n";
       return;
     }
     
@@ -461,52 +413,52 @@ protected:
     auto f = r.read();
     r.disable();
   
-    m_stream << "reservoir fill is " << f << "/255\n";
+    stream() << "reservoir fill is " << f << "/255\n";
   }
   
   void cmdCircuitPump()
   {
     if (systemMode.getMode() != SystemMode::Manual) {
-      m_stream << "you need to be in manual mode to do this\n";
+      stream() << "you need to be in manual mode to do this\n";
       return;
     }
     
     int id;
     WaterCircuit* w;
-    if (not cmdParseId(id, w)) {
-      m_stream << "invalid index\n";
+    if (getId(id, w) != ArgOk) {
+      stream() << "invalid index\n";
       return;
     }
   
     float s;
-    if (not cmdParseFloat(s, 0, 60 * 10)) {
-      m_stream << "manual pump seconds must be between 0.0 and 60.0\n";
+    if (getFloat(s, 0, 60 * 10) != ArgOk) {
+      stream() << "manual pump seconds must be between 0.0 and 60.0\n";
       return;
     }
   
-    m_stream << "pump enabled " << timeClient.getFormattedTime() << "\n";
+    stream() << "pump enabled " << timeClient.getFormattedTime() << "\n";
   
     auto& p = w->getPump();
     p.enable();
     delay(s * 1000);
     p.disable();
   
-    m_stream << "pump disabled " << timeClient.getFormattedTime() << "\n";
+    stream() << "pump disabled " << timeClient.getFormattedTime() << "\n";
   }
   
   void cmdCircuitValve()
   {
       if (systemMode.getMode() != SystemMode::Manual) {
-      m_stream << "you need to be in manual mode to do this\n";
+      stream() << "you need to be in manual mode to do this\n";
       return;
     }
     
     int id;
     WaterCircuit* w;
-    if (not cmdParseId(id, w)) {
+    if (getId(id, w) != ArgOk) {
       id = 1;
       for (WaterCircuit** w = circuits; *w; w++, id++) {
-        m_stream << "  valve " << id << ((*w)->getValve().isOpen() ? " open" : " closed") << "\n";
+        stream() << "  valve " << id << ((*w)->getValve().isOpen() ? " open" : " closed") << "\n";
       }
       return;
     }
@@ -514,7 +466,7 @@ protected:
     const char* arg = next();
     
     if (not arg) {
-      m_stream << "  valve " << id << (w->getValve().isOpen() ? " open" : " closed") << "\n";
+      stream() << "  valve " << id << (w->getValve().isOpen() ? " open" : " closed") << "\n";
       return;
     }
     bool open;
@@ -523,7 +475,7 @@ protected:
     } else if (strcmp(arg, "close") == 0) {
       open = false;
     } else {
-      m_stream << "no valve argument supplied. valid arguments are \"open\" and \"close\"\n";
+      stream() << "no valve argument supplied. valid arguments are \"open\" and \"close\"\n";
       return;
     }
   
@@ -531,29 +483,29 @@ protected:
     auto& v = w->getValve();
     if (open) {
       v.open();
-      m_stream << "valve " << id << " opened " << timeClient.getFormattedTime() << "\n";
+      stream() << "valve " << id << " opened " << timeClient.getFormattedTime() << "\n";
     } else {
       v.close();
-      m_stream << "valve " << id << " closed " << timeClient.getFormattedTime() << "\n";
+      stream() << "valve " << id << " closed " << timeClient.getFormattedTime() << "\n";
     }
   }
   
   void prtCircuitInfo(WaterCircuit* w, int id)
   {
-    m_stream <<  "on-board circuit [" << id << "]:";
-    w->prt(m_stream);
+    stream() <<  "on-board circuit [" << id << "]:";
+    w->prt(stream());
   }
   
   void cmdCircuitInfo()
   {
     int id;
     WaterCircuit* w;
-    if (not cmdParseId(id, w)) {
+    if (getId(id, w) != ArgOk) {
       id = 1;
       for (WaterCircuit** c = circuits; *c; c++, id++) {
         prtCircuitInfo(*c, id);
         if (id != NumWaterCircuits) {
-          m_stream << "\n";
+          stream() << "\n";
         }
       }
       return;
@@ -565,59 +517,59 @@ protected:
   { 
     int id;
     WaterCircuit* w;
-    if (not cmdParseId(id, w)) {
-      m_stream << "invalid index\n";
+    if (getId(id, w) != ArgOk) {
+      stream() << "invalid index\n";
       return;
     }
     
     const char* arg = next();
     if (arg == NULL) {
-      m_stream << "no parameter\n";
+      stream() << "no parameter\n";
       return;
     }
   
     if (strcmp(arg, "pump") == 0) {
       int s;
-      if (not cmdParseInt(s, 0, 255)) {
-        m_stream << "pump seconds must be between 0 and 255\n";
+      if (getInt(s, 0, 255) != ArgOk) {
+        stream() << "pump seconds must be between 0 and 255\n";
         return;
       }
       w->setPumpSeconds(s);
-      m_stream << "pump time set to " << s << " seconds\n";
+      stream() << "pump time set to " << s << " seconds\n";
     } else if (strcmp(arg, "soak") == 0) {
       int m;
-      if (not cmdParseInt(m, 0, 255)) {
-        m_stream << "soak minutes must be between 0 and 255\n";
+      if (getInt(m, 0, 255) != ArgOk) {
+        stream() << "soak minutes must be between 0 and 255\n";
         return;
       }
       w->setSoakMinutes(m);
-      m_stream << "soak time set to " << m << " minutes\n";
+      stream() << "soak time set to " << m << " minutes\n";
     } else if (strcmp(arg, "dry") == 0) {
       int t;
-      if (not cmdParseInt(t, 0, 255)) {
-        m_stream << "dry threshold must be between 0 and 255\n";
+      if (getInt(t, 0, 255) != ArgOk) {
+        stream() << "dry threshold must be between 0 and 255\n";
         return;
       }
       w->setThreshDry(t);
-      m_stream << "dry threshold set to " << t << "\n";
+      stream() << "dry threshold set to " << t << "\n";
     } else if (strcmp(arg, "wet") == 0) {
       int t;
-      if (not cmdParseInt(t, 0, 255)) {
-        m_stream << "wet threshold must be between 0 and 255\n";
+      if (getInt(t, 0, 255) != ArgOk) {
+        stream() << "wet threshold must be between 0 and 255\n";
         return;
       }
       w->setThreshWet(t);
-      m_stream << "wet threshold set to " << t << "\n";
+      stream() << "wet threshold set to " << t << "\n";
     } else if (strcmp(arg, "res") == 0) {
       int t;
-      if (not cmdParseInt(t, 0, 255)) {
-        m_stream << "reservoir threshold must be between 0 and 255\n";
+      if (getInt(t, 0, 255) != ArgOk) {
+        stream() << "reservoir threshold must be between 0 and 255\n";
         return;
       }
       w->setThreshReservoir(t);
-      m_stream << "reservoir threshold set to " << t << "\n";
+      stream() << "reservoir threshold set to " << t << "\n";
     } else {
-      m_stream << "invalid parameter \"" << arg << "\"\n";
+      stream() << "invalid parameter \"" << arg << "\"\n";
       return;
     }
   
@@ -628,8 +580,8 @@ protected:
   { 
     int id;
     WaterCircuit* w;
-    if (not cmdParseId(id, w)) {
-      m_stream << "invalid index\n";
+    if (getId(id, w) != ArgOk) {
+      stream() << "invalid index\n";
       return;
     }
 
@@ -640,7 +592,7 @@ protected:
   {
     int id;
   
-    if (not cmdParseInt(id, 1, NumWaterCircuits)) {
+    if (getInt(id, 1, NumWaterCircuits) != ArgOk) {
       for (Logger** l = loggers; *l; l++) {
         (*l)->trigger();
       }
@@ -657,7 +609,7 @@ protected:
     ThingSpeakLogger* tsl = static_cast<ThingSpeakLogger*>(loggers[id - 1]);
     auto& s = tsl->getTslSettings();
     
-    m_stream
+    stream()
       << "ThingSpeak Logger [" << id << "]: "
       << (s.m_settings.m_intervalMinutes == 0 or s.m_channelId == 0 ?
           " off\n" :  " active\n")
@@ -670,11 +622,11 @@ protected:
   {
     int id;
   
-    if (not cmdParseInt(id, 1, NumWaterCircuits)) {
+    if (getInt(id, 1, NumWaterCircuits) != ArgOk) {
       for (id = 1; id <= (int)NumWaterCircuits; id++) {
         printLoggerInfo(id);
         if (id != NumWaterCircuits) {
-          m_stream << "\n";
+          stream() << "\n";
         }
       }
       return;
@@ -688,8 +640,8 @@ protected:
   {
     int id;
   
-    if (not cmdParseInt(id, 1, NumWaterCircuits)) {
-      m_stream << "invalid index\n";
+    if (getInt(id, 1, NumWaterCircuits) != ArgOk) {
+      stream() << "invalid index\n";
       return;
     }
   
@@ -698,37 +650,37 @@ protected:
   
     const char* arg = next();
     if (arg == NULL) {
-      m_stream << "no parameter\n";
+      stream() << "no parameter\n";
       return;
     }
   
     if (strcmp(arg, "interval") == 0) {
       int m;
-      if (not cmdParseInt(m, 0, 1440)) {
-        m_stream << "interval minutes must be between 0 and 1440 (24h)\n";
+      if (getInt(m, 0, 1440) != ArgOk) {
+        stream() << "interval minutes must be between 0 and 1440 (24h)\n";
         return;
       }
       tsl->setIntervalMinutes(m);
-      m_stream << "log interval set to " << m << " minutes\n";
+      stream() << "log interval set to " << m << " minutes\n";
     } else if (strcmp(arg, "chid") == 0) {
       long chid;
-      if (not cmdParseLong(chid, 0, LONG_MAX)) {
-        m_stream << "channel ID must be unsigned\n";
+      if (getLong(chid, 0, LONG_MAX) != ArgOk) {
+        stream() << "channel ID must be unsigned\n";
         return;
       }
       tsl->setChannelId(chid);
-      m_stream << "channel ID set to " << chid << "\n";
+      stream() << "channel ID set to " << chid << "\n";
     } else if (strcmp(arg, "key") == 0) {
       const char* karg = next();
       if (karg == NULL) {
         tsl->setWriteApiKey("");
-        m_stream << "write API key set to \"\"\n";
+        stream() << "write API key set to \"\"\n";
       } else {
         tsl->setWriteApiKey(karg);
-        m_stream << "write API key set to \"" << karg << "\"\n";
+        stream() << "write API key set to \"" << karg << "\"\n";
       }
     } else {
-      m_stream << "invalid parameter \"" << arg << "\"\n";
+      stream() << "invalid parameter \"" << arg << "\"\n";
       return;
     }
   
@@ -737,18 +689,15 @@ protected:
   
   void cmdSchedulerInfo()
   {
-    m_stream << "scheduler entries:\n";
+    stream() << "scheduler entries:\n";
     
     int i = 1;  
     for (SchedulerTime **t = schedulerTimes; *t; t++, i++) {
-      m_stream << "  Entry [" << i << "]: ";
+      stream() << "  Entry [" << i << "]: ";
       if ((*t)->isValid()) {
-        prtTwoDigit((*t)->getHour());
-        m_stream << ":";
-        prtTwoDigit((*t)->getMinute());
-        m_stream << "\n";
+        prtFmt(stream(), "%02u:%02u\n", (*t)->getHour(), (*t)->getMinute());
       } else {
-        m_stream << "off\n";
+        stream() << "off\n";
       }
     }
   }
@@ -756,8 +705,9 @@ protected:
   void cmdSchedulerSet()
   {
     int index;
-    if (not cmdParseInt(index, 1, NumSchedulerTimes)) {
-      m_stream << "index must be in the range 1 .. " << NumSchedulerTimes << "\n";
+    auto res = getInt(index, 1, NumSchedulerTimes);
+    if (res != ArgOk) {
+      stream() << "index must be in the range 1 .. " << NumSchedulerTimes << "\n";
       return;
     }
     
@@ -771,12 +721,12 @@ protected:
               isDigit(arg[3])    and
               isDigit(arg[4]))))
     {
-      m_stream << "time must be of format \"hh:mm\" or \"off\"\n";
+      stream() << "time must be of format \"hh:mm\" or \"off\"\n";
       return;
     }
   
     if (strcmp(arg, "off") == 0) {
-      m_stream << "configuring scheduler entry [" << index << "] to \"off\"\n";
+      stream() << "configuring scheduler entry [" << index << "] to \"off\"\n";
       schedulerTimes[index - 1]->setHour(SchedulerTime::InvalidHour);
       schedulerTimes[index - 1]->setMinute(0);
   
@@ -800,20 +750,17 @@ protected:
     }
   
     if (h < 0 or h > 23) {
-      m_stream << "hour must be in the range 0 .. 23\n";
+      stream() << "hour must be in the range 0 .. 23\n";
       return;
     }
   
     if (m < 0 or m > 59) {
-      m_stream << "minute must be in the range 0 .. 59\n";
+      stream() << "minute must be in the range 0 .. 59\n";
       return;
     }
   
-    m_stream << "configuring scheduler entry [" << index << "] to ";
-    prtTwoDigit(h);
-    m_stream << ":";
-    prtTwoDigit(m);
-    m_stream << "\n";
+    stream() << "configuring scheduler entry [" << index << "] to ";
+    prtFmt(stream(), "%02u:%02u\n", h, m);
     
     schedulerTimes[index - 1]->setHour(h);
     schedulerTimes[index - 1]->setMinute(m);
@@ -823,7 +770,7 @@ protected:
   
   void cmdNetworkRssi()
   {
-    m_stream << "current RSSI: " << WiFi.RSSI() << " dB\n";
+    stream() << "current RSSI: " << WiFi.RSSI() << " dB\n";
   }
   
   
@@ -832,13 +779,13 @@ protected:
     const char* arg = next();
   
     if (arg == NULL or strlen(arg) == 0) {
-      m_stream << "no wifi SSID argument\n";
+      stream() << "no wifi SSID argument\n";
       return;
     }
     strncpy(flashDataSet.wifiSsid, arg, MaxWifiSsidLen);
     flashMemory.update();
   
-    m_stream << "wifi SSID \"" << arg << "\" stored to flash\n";
+    stream() << "wifi SSID \"" << arg << "\" stored to flash\n";
   }
   
   void cmdNetworkPass()
@@ -846,13 +793,13 @@ protected:
     const char* arg = next();
   
     if (arg == NULL or strlen(arg) == 0) {
-      m_stream << "no wifi password argument\n";
+      stream() << "no wifi password argument\n";
       return;
     }
     strncpy(flashDataSet.wifiPass, arg, MaxWifiPassLen);
     flashMemory.update();
   
-    m_stream << "wifi pass \"" << arg << "\" stored to flash\n";
+    stream() << "wifi pass \"" << arg << "\" stored to flash\n";
   }
   
   void cmdNetworkConnect()
@@ -863,26 +810,26 @@ protected:
   
   void cmdNetworkList()
   {
-    Network::printVisibleNetworks(m_stream);
+    Network::printVisibleNetworks(stream());
   }
 
   void cmdNetworkHostName()
   {
     const char* arg = next();
     if (not arg) {
-      m_stream << "current host name is \"" << flashDataSet.hostName << "\"\n";
+      stream() << "current host name is \"" << flashDataSet.hostName << "\"\n";
       return;
     }
 
     if (strlen(arg) == 0) {
-      m_stream << "the host name can not be empty\n";
+      stream() << "the host name can not be empty\n";
       return;
     }
     
     strncpy(flashDataSet.hostName, arg, MaxHostNameLen);
     flashMemory.update();
   
-    m_stream << "new host name \"" << arg << "\" stored to flash. restarting network...\n";
+    stream() << "new host name \"" << arg << "\" stored to flash. restarting network...\n";
 
     network.disconnect();
     network.connect();
@@ -890,45 +837,47 @@ protected:
 
   void cmdNetworkTelnet()
   {
-    const char* arg = next();
-    if (not arg) {
-      m_stream << "the telnet server is " << (flashDataSet.telnetEnabled ? "enabled\n" : "disabled\n");
-      return;
+    size_t idx(0);
+    enum {ON = 0, OFF};
+    switch (getOption(idx, "on", "off")) {
+      case ArgOk:
+        switch (idx) {
+          case ON:
+            stream() << "telnet server ";
+            if (not flashDataSet.telnetEnabled) {
+              flashDataSet.telnetEnabled = true;
+              stream() << " now enabled\n";
+            } else {
+              stream() << "already enabled\n";
+              return;
+            }
+            break;
+          case OFF:
+            stream() << "telnet server ";
+            if (flashDataSet.telnetEnabled) {
+              flashDataSet.telnetEnabled = false;
+              stream() << " now disabled\n";
+            } else {
+              stream() << "already disabled\n";
+              return;
+            }
+            break;
+        }
+        break;
+      case ArgNone:
+        stream() << "the telnet server is " << (flashDataSet.telnetEnabled ? "enabled\n" : "disabled\n");
+        return;
+      default:
+        stream() << "invalid argument \"" << current() << "\". use \"on\" or \"off\"\n";
+        return;
     }
 
-    if (strlen(arg) == 0) {
-      m_stream << "supported values are \"on\" or \"off\"\n";
-      return;
-    }
-
-    if (strcmp(arg, "on") == 0) {
-      m_stream << "telnet server ";
-      if (not flashDataSet.telnetEnabled) {
-        flashDataSet.telnetEnabled = true;
-        m_stream << " now enabled\n";
-      } else {
-        m_stream << "already enabled\n";
-        return;
-      }
-    } else if (strcmp(arg, "off") == 0) {
-      m_stream << "telnet server ";
-      if (flashDataSet.telnetEnabled) {
-        flashDataSet.telnetEnabled = false;
-        m_stream << " now disabled\n";
-      } else {
-        m_stream << "already disabled\n";
-        return;
-      }
-    } else {
-      m_stream << "supported values are \"on\" or \"off\"\n";
-      return;
-    }
     flashMemory.update();
   }
   void cmdInvalid(const char *command)
   {
     if (strlen(command)) {
-      m_stream << "what do you mean by \"" << command << "\"? try the \"help\" command\n";
+      stream() << "what do you mean by \"" << command << "\"? try the \"help\" command\n";
     }
   }
 
@@ -1027,7 +976,9 @@ public:
   }
 };
 
-
+/** A command line handler for telnet connections.
+ * 
+ */
 class TelnetCli
   : public Cli
 {
@@ -1220,4 +1171,6 @@ void telnetRun()
     telnetClis[i].run();
   }
 }
+
+#endif /* EW_IG_CLI_H */
 
