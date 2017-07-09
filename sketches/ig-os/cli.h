@@ -16,10 +16,10 @@ OneWire oneWireBus(OneWirePin);
 
 
 class Cli
-  : public StreamCmd<32, /* _CommandBufferSize */
-                      8, /* _MaxCommandSize    */
+  : public StreamCmd< 2, /* _NumCommandSets    */
                      32, /* _MaxCommands       */
-                      2> /* _NumCommandSets    */
+                     32, /* _CommandBufferSize */
+                      8> /* _MaxCommandSize    */
 {
 private:
   bool m_cliTrigger;
@@ -839,7 +839,7 @@ protected:
   {
     size_t idx(0);
     enum {ON = 0, OFF};
-    switch (getOption(idx, "on", "off")) {
+    switch (getOpt(idx, "on", "off")) {
       case ArgOk:
         switch (idx) {
           case ON:
