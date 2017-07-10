@@ -2,7 +2,7 @@
 #define EW_IG_SYSTEM
 
 #include "config.h"
-#include "water_circuit.h"
+#include "circuit.h"
 #include "log.h"
 
 #include <climits>

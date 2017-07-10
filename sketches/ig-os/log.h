@@ -1,7 +1,7 @@
 #ifndef EW_IG_LOG_H
 #define EW_IG_LOG_H
 
-#include "water_circuit.h"
+#include "circuit.h"
 
 /* TODO: we should trigger on absolute time to achieve a more regular logging interval */
 

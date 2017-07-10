@@ -28,8 +28,6 @@
  * 
  */
 
-//#include <Wire.h>
-
 #include "cli.h"
 #include "spi.h"
 #include "flash.h"
@@ -76,7 +74,7 @@ void loop()
   uartCli.run();
 
   network.run();
-  telnetRun();
+  telnetServer.run();
 
   timeClient.update();
 //  webserver.run();
