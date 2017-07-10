@@ -6,6 +6,7 @@
 
  * Library manager:
  *   OneWire
+ *   DS1307RTC (optional for I2C real time clock)
  * 
  * 
  * Notes for HUF/EW

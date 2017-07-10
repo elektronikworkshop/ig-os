@@ -64,6 +64,7 @@ public:
 
     addCommand("ow",        &Cli::cmdOneWireScan);
     addCommand("i2c",       &Cli::cmdI2cScan);
+    addCommand("ee",       &Cli::cmdEe);
   
     setDefaultHandler(&Cli::cmdInvalid);
   }
@@ -206,6 +207,57 @@ public:
     } else {
       stream() << "done\n";
     }
+  }
+
+  void cmdEe()
+  {
+    stream() << "sizeof(size_t): " << sizeof(size_t) << "\n";
+    
+    size_t rw(0);
+    if (getOpt(rw, "r", "w") != ArgOk) {
+      stream() << "read (r) or write (r)\n";
+      return;
+    }
+    unsigned int address(0);
+    if (getUInt(address, 0, UINT_MAX, 16) != ArgOk) {
+      stream() << "no valid address argument\n";
+      return;
+    }
+
+    const uint8_t deviceAddress = 0x50;
+
+    if (rw) {
+      const char* arg = next();
+      if (not arg or not strlen(arg)) {
+        stream() << "you must provide a string to write\n";
+        return;
+      }
+      I2cAt24Cxx ee;
+      ee.begin(deviceAddress);
+      ee.write(address, (const uint8_t*)arg, strlen(arg));
+      stream() << "\"" << arg << "\" written to ";
+      prtFmt(stream(), "0x%04x\n", address);
+    } else {
+      unsigned int count(0);
+      if (getUInt(count, 0, UINT_MAX, 16) != ArgOk) {
+        stream() << "no valid count argument\n";
+        return;
+      }
+      stream() << "reading " << count << " bytes from ";
+      prtFmt(stream(), "0x%04x:\n", address);
+      I2cAt24Cxx ee;
+      ee.begin(deviceAddress);
+      while (count) {
+        const size_t N = 32;
+        char buf[N + 1] = {0};
+        size_t toread = std::min(N, count);
+        ee.read(address, (uint8_t*)buf, toread);
+        stream() << buf;
+        address += toread;
+        count -= toread;
+      }
+      stream() << "\n";
+    }   
   }
   
   bool isWateringTriggered()

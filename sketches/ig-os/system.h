@@ -150,5 +150,177 @@ namespace history {
   
 } /* namespace history */
 
+
+#include <Wire.h>
+
+class I2cDevice
+{
+public:
+  struct Config
+  {
+    uint8_t m_type;
+    uint8_t m_address;
+  };
+  void begin(uint8_t address)
+  {
+    m_address = address;
+    Wire.begin();
+  }
+
+  uint8_t getDeviceAddress()
+  {
+    return m_address;
+  }
+private:
+  uint8_t m_address;
+};
+
+/**
+ * Code mostly stolen and then modified from:
+ * https://github.com/jlesech/Eeprom24C32_64/blob/master/Eeprom24C32_64.cpp
+ */
+class I2cAt24Cxx
+  : public I2cDevice
+{
+public:
+  typedef uint16_t Address;
+  /** EEPROM page size (see datasheet)
+   */
+  static const uint16_t PageSize = 32;
+
+  /** Read buffer size in Wire library.
+   */
+  static const uint16_t WireReadBufferSize = BUFFER_LENGTH;
+
+  /** Wire write buffer length, Two bytes are reserved for address.
+   */
+  static const uint16_t WireWriteBufferSize = BUFFER_LENGTH - 2;
+
+  I2cAt24Cxx(size_t size = 4096)
+    : m_size(size)
+  { }
+  uint8_t readByte(Address address)
+  {
+      Wire.beginTransmission(getDeviceAddress());
+      Wire.write(address >> 8);
+      Wire.write(address & 0xFF);
+      Wire.endTransmission();
+      Wire.requestFrom(getDeviceAddress(), (uint8_t)1);
+      uint8_t data = 0;
+      if (Wire.available()) {
+          data = Wire.read();
+      }
+      return data;
+  }
+  void read(Address address, uint8_t* data, size_t count)
+  {
+    size_t nBuffers = count / WireReadBufferSize;
+    
+    for (; nBuffers; nBuffers--) {
+      
+        readBuffer(address, data, WireReadBufferSize);
+        
+        address += WireReadBufferSize;
+        data    += WireReadBufferSize;
+        count   -= WireReadBufferSize;
+    }
+
+    if (count) {
+      readBuffer(address, data, count);
+    }
+  }
+  void write(Address address, uint8_t data)
+  {
+    Wire.beginTransmission(getDeviceAddress());
+    Wire.write(address >> 8);
+    Wire.write(address & 0xFF);
+    Wire.write(data);
+    Wire.endTransmission();
+  }
+  void write(Address address, const uint8_t* data, size_t count)
+  {
+    // Write first page if not aligned.
+    size_t notAlignedLength = 0;
+    size_t pageOffset = address % PageSize;
+    
+    if (pageOffset > 0) {
+      
+        notAlignedLength = std::min(count, PageSize - pageOffset);
+        
+        writePage(address, data, notAlignedLength);
+ 
+        address += notAlignedLength;
+        data    += notAlignedLength;
+        count   -= notAlignedLength;
+    }
+
+    if (count) {
+
+      size_t nPages = count / PageSize;
+      for (; nPages; nPages--) {
+        
+          writePage(address, data, PageSize);
+
+          address += PageSize;
+          data    += PageSize;
+          count   -= PageSize;
+      }
+
+      if (count) {
+          writePage(address, data, count);
+      }
+    }
+  }
+private:
+  void readBuffer(Address address, uint8_t* data, size_t count)
+  {
+    Wire.beginTransmission(getDeviceAddress());
+    Wire.write(address >> 8);
+    Wire.write(address & 0xFF);
+    Wire.endTransmission();
+    Wire.requestFrom(getDeviceAddress(), count);
+    for (; count; count--) {
+      if (Wire.available())
+      {
+          *data++ = Wire.read();
+      }
+    }
+  }
+  void writePage(Address address, const uint8_t* data, size_t count)
+  {
+    size_t nBuffers = count / WireWriteBufferSize;
+    for (; nBuffers; nBuffers--)
+    {
+        writeBuffer(address, data, WireWriteBufferSize);
+        
+        address += WireWriteBufferSize;
+        data    += WireWriteBufferSize;
+        count   -= WireWriteBufferSize;
+    }
+    if (count) {
+      writeBuffer(address, data, count);
+    }
+  }
+  void writeBuffer(Address address, const uint8_t* data, size_t count)
+  {
+      Wire.beginTransmission(getDeviceAddress());
+      Wire.write(address >> 8);
+      Wire.write(address & 0xFF);
+      for (; count; count--)
+      {
+          Wire.write(*data++);
+      }
+      Wire.endTransmission();
+      
+      // Write cycle time (tWR). See EEPROM memory datasheet for more details.
+      delay(10);
+  }
+  size_t m_size;
+};
+
+// DS1307RTC library
+// http://www.makeuseof.com/tag/how-and-why-to-add-a-real-time-clock-to-arduino/
+// use the library example!
+
 #endif /* #ifndef EW_IG_SYSTEM */
 
