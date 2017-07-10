@@ -1,6 +1,6 @@
 #include "system.h"
 #include "spi.h"
-#include "flash.h"
+#include "settings.h"
 
 #include <WiFiUdp.h>
 
@@ -215,22 +215,22 @@ OnboardValve valve1(Spi::Valve2);
 OnboardValve valve2(Spi::Valve3);
 OnboardValve valve3(Spi::Valve4);
 
-TheWaterCircuit circuit0(0, sensor0, valve0, pump, reservoir, flashDataSet.waterCircuitSettings[0]);
-TheWaterCircuit circuit1(1, sensor1, valve1, pump, reservoir, flashDataSet.waterCircuitSettings[1]);
-TheWaterCircuit circuit2(2, sensor2, valve2, pump, reservoir, flashDataSet.waterCircuitSettings[2]);
-TheWaterCircuit circuit3(3, sensor3, valve3, pump, reservoir, flashDataSet.waterCircuitSettings[3]);
+TheWaterCircuit circuit0(0, sensor0, valve0, pump, reservoir, flashSettings.waterCircuitSettings[0]);
+TheWaterCircuit circuit1(1, sensor1, valve1, pump, reservoir, flashSettings.waterCircuitSettings[1]);
+TheWaterCircuit circuit2(2, sensor2, valve2, pump, reservoir, flashSettings.waterCircuitSettings[2]);
+TheWaterCircuit circuit3(3, sensor3, valve3, pump, reservoir, flashSettings.waterCircuitSettings[3]);
 
 WaterCircuit* circuits[NumWaterCircuits + 1] = {&circuit0, &circuit1, &circuit2, &circuit3, NULL};
 
 
-SchedulerTime schedulerTime0(flashDataSet.schedulerTimes[0]);
-SchedulerTime schedulerTime1(flashDataSet.schedulerTimes[1]);
-SchedulerTime schedulerTime2(flashDataSet.schedulerTimes[2]);
-SchedulerTime schedulerTime3(flashDataSet.schedulerTimes[3]);
-SchedulerTime schedulerTime4(flashDataSet.schedulerTimes[4]);
-SchedulerTime schedulerTime5(flashDataSet.schedulerTimes[5]);
-SchedulerTime schedulerTime6(flashDataSet.schedulerTimes[6]);
-SchedulerTime schedulerTime7(flashDataSet.schedulerTimes[7]);
+SchedulerTime schedulerTime0(flashSettings.schedulerTimes[0]);
+SchedulerTime schedulerTime1(flashSettings.schedulerTimes[1]);
+SchedulerTime schedulerTime2(flashSettings.schedulerTimes[2]);
+SchedulerTime schedulerTime3(flashSettings.schedulerTimes[3]);
+SchedulerTime schedulerTime4(flashSettings.schedulerTimes[4]);
+SchedulerTime schedulerTime5(flashSettings.schedulerTimes[5]);
+SchedulerTime schedulerTime6(flashSettings.schedulerTimes[6]);
+SchedulerTime schedulerTime7(flashSettings.schedulerTimes[7]);
 
 SchedulerTime* schedulerTimes[NumSchedulerTimes + 1] =
 {
@@ -256,10 +256,10 @@ bool wateringDue()
 }
 
 
-ThingSpeakLogger thingSpeakLogger0(circuit0, flashDataSet.thingSpeakLoggerSettings[0]);
-ThingSpeakLogger thingSpeakLogger1(circuit1, flashDataSet.thingSpeakLoggerSettings[1]);
-ThingSpeakLogger thingSpeakLogger2(circuit2, flashDataSet.thingSpeakLoggerSettings[2]);
-ThingSpeakLogger thingSpeakLogger3(circuit3, flashDataSet.thingSpeakLoggerSettings[3]);
+ThingSpeakLogger thingSpeakLogger0(circuit0, flashSettings.thingSpeakLoggerSettings[0]);
+ThingSpeakLogger thingSpeakLogger1(circuit1, flashSettings.thingSpeakLoggerSettings[1]);
+ThingSpeakLogger thingSpeakLogger2(circuit2, flashSettings.thingSpeakLoggerSettings[2]);
+ThingSpeakLogger thingSpeakLogger3(circuit3, flashSettings.thingSpeakLoggerSettings[3]);
 
 Logger* loggers[NumWaterCircuits + 1] =
 {

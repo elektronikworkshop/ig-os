@@ -1,5 +1,7 @@
+
 #include "network.h"
-#include "flash.h"
+#include "config.h"
+#include "settings.h"
 
 #include <ESP8266mDNS.h>
 
@@ -26,7 +28,7 @@ Network::startMdns()
   // - second argument is the IP address to advertise
   //   we send our IP address on the WiFi network
 
-  const char* hostName = flashDataSet.hostName;
+  const char* hostName = flashSettings.hostName;
   if (strlen(hostName) == 0) {
     Serial << "host name with length zero detected. defaulting to \"" << DefaultHostName << "\"\n";
     hostName = DefaultHostName;
@@ -51,7 +53,7 @@ Network::run()
     case StateConnecting:
       if (WiFi.status() == WL_CONNECTED) {
         Serial
-          << "wifi connected to " << flashDataSet.wifiSsid << "\n"
+          << "wifi connected to " << flashSettings.wifiSsid << "\n"
           << "signal strength: " << WiFi.RSSI() << " dB\n"
           << "IP:              " << WiFi.localIP() << "\n";
         m_state = StateConnected;
@@ -62,7 +64,7 @@ Network::run()
         // Stop any pending request
         WiFi.disconnect();
         m_state = StateDisconnected;
-        Serial << "wifi failed to connect to SSID \"" << flashDataSet.wifiSsid << "\" -- timeout\n";
+        Serial << "wifi failed to connect to SSID \"" << flashSettings.wifiSsid << "\" -- timeout\n";
       }
       break;
     case StateConnected:
@@ -82,8 +84,8 @@ Network::connect()
     return;
   }
 
-  if (strlen(flashDataSet.wifiSsid) == 0 or strlen(flashDataSet.wifiPass) == 0) {
-    Serial << "wifi SSID (\"" << flashDataSet.wifiSsid << "\") or password (\"" << flashDataSet.wifiPass << "\") not set -- can not connect to network, please set up your SSID and password\n";
+  if (strlen(flashSettings.wifiSsid) == 0 or strlen(flashSettings.wifiPass) == 0) {
+    Serial << "wifi SSID (\"" << flashSettings.wifiSsid << "\") or password (\"" << flashSettings.wifiPass << "\") not set -- can not connect to network, please set up your SSID and password\n";
 
     printVisibleNetworks();
     
@@ -94,7 +96,7 @@ Network::connect()
 
   // Set WiFi mode to station (as opposed to AP or AP_STA)
   WiFi.mode(WIFI_STA);
-  WiFi.begin(flashDataSet.wifiSsid, flashDataSet.wifiPass);
+  WiFi.begin(flashSettings.wifiSsid, flashSettings.wifiPass);
 
   m_state = StateConnecting;
 }

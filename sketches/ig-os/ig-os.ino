@@ -31,13 +31,14 @@
 
 #include "cli.h"
 #include "spi.h"
-#include "flash.h"
 #include "network.h"
 #include "webserver.h"
 
 LogProxy<MaxTelnetClients> Log;
 LogProxy<MaxTelnetClients> Debug;//(false);
 ErrorLogProxy Error;
+
+FlashSettings<FlashData> flashSettings;
 
 //Webserver webserver(80);
 
@@ -49,7 +50,7 @@ void setup()
 
   Wire.begin();
 
-  flashMemory.begin();
+  flashSettings.begin();
   
   network.begin();
   timeClient.begin();

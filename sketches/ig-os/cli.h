@@ -5,8 +5,7 @@
 #include "log.h"
 #include "spi.h"
 #include "network.h"
-#include "flash.h"
-
+#include "settings.h"
 
 #include <StreamCmd.h>
 #include <OneWire.h>
@@ -625,7 +624,7 @@ protected:
       return;
     }
   
-    flashMemory.update();
+    flashSettings.update();
   }
 
   void cmdCircuitStop()
@@ -736,7 +735,7 @@ protected:
       return;
     }
   
-    flashMemory.update();
+    flashSettings.update();
   }
   
   void cmdSchedulerInfo()
@@ -782,7 +781,7 @@ protected:
       schedulerTimes[index - 1]->setHour(SchedulerTime::InvalidHour);
       schedulerTimes[index - 1]->setMinute(0);
   
-      flashMemory.update();
+      flashSettings.update();
   
       return;
     }
@@ -817,12 +816,12 @@ protected:
     schedulerTimes[index - 1]->setHour(h);
     schedulerTimes[index - 1]->setMinute(m);
   
-    flashMemory.update();
+    flashSettings.update();
   }
   
   void cmdNetworkRssi()
   {
-    stream() << "current RSSI: " << WiFi.RSSI() << " dB\n";
+    stream() << "RSSI: " << WiFi.RSSI() << " dB\n";
   }
   
   
@@ -830,14 +829,14 @@ protected:
   {
     const char* arg = next();
   
-    if (arg == NULL or strlen(arg) == 0) {
-      stream() << "no wifi SSID argument\n";
+    if (not arg or not strlen(arg)) {
+      stream() << "SSID: " << flashSettings.wifiSsid << "\n";
       return;
     }
-    strncpy(flashDataSet.wifiSsid, arg, MaxWifiSsidLen);
-    flashMemory.update();
+    strncpy(flashSettings.wifiSsid, arg, MaxWifiSsidLen);
+    flashSettings.update();
   
-    stream() << "wifi SSID \"" << arg << "\" stored to flash\n";
+    stream() << "SSID \"" << arg << "\" stored to flash\n";
   }
   
   void cmdNetworkPass()
@@ -845,11 +844,12 @@ protected:
     const char* arg = next();
   
     if (arg == NULL or strlen(arg) == 0) {
-      stream() << "no wifi password argument\n";
+      /* this is perhaps not a good idea, but can come in handy for now */
+      stream() << "wifi password: " << flashSettings.wifiPass << "\n";
       return;
     }
-    strncpy(flashDataSet.wifiPass, arg, MaxWifiPassLen);
-    flashMemory.update();
+    strncpy(flashSettings.wifiPass, arg, MaxWifiPassLen);
+    flashSettings.update();
   
     stream() << "wifi pass \"" << arg << "\" stored to flash\n";
   }
@@ -869,7 +869,7 @@ protected:
   {
     const char* arg = next();
     if (not arg) {
-      stream() << "current host name is \"" << flashDataSet.hostName << "\"\n";
+      stream() << "host name: " << flashSettings.hostName << "\n";
       return;
     }
 
@@ -878,8 +878,8 @@ protected:
       return;
     }
     
-    strncpy(flashDataSet.hostName, arg, MaxHostNameLen);
-    flashMemory.update();
+    strncpy(flashSettings.hostName, arg, MaxHostNameLen);
+    flashSettings.update();
   
     stream() << "new host name \"" << arg << "\" stored to flash. restarting network...\n";
 
@@ -896,8 +896,8 @@ protected:
         switch (idx) {
           case ON:
             stream() << "telnet server ";
-            if (not flashDataSet.telnetEnabled) {
-              flashDataSet.telnetEnabled = true;
+            if (not flashSettings.telnetEnabled) {
+              flashSettings.telnetEnabled = true;
               stream() << " now enabled\n";
             } else {
               stream() << "already enabled\n";
@@ -906,8 +906,8 @@ protected:
             break;
           case OFF:
             stream() << "telnet server ";
-            if (flashDataSet.telnetEnabled) {
-              flashDataSet.telnetEnabled = false;
+            if (flashSettings.telnetEnabled) {
+              flashSettings.telnetEnabled = false;
               stream() << " now disabled\n";
             } else {
               stream() << "already disabled\n";
@@ -917,14 +917,14 @@ protected:
         }
         break;
       case ArgNone:
-        stream() << "the telnet server is " << (flashDataSet.telnetEnabled ? "enabled\n" : "disabled\n");
+        stream() << "the telnet server is " << (flashSettings.telnetEnabled ? "enabled\n" : "disabled\n");
         return;
       default:
         stream() << "invalid argument \"" << current() << "\". use \"on\" or \"off\"\n";
         return;
     }
 
-    flashMemory.update();
+    flashSettings.update();
   }
   void cmdInvalid(const char *command)
   {
@@ -952,7 +952,7 @@ public:
     NotAuthenticated,
   };
   TelnetCli()
-    : Cli(getStream(), '\r', flashDataSet.hostName)
+    : Cli(getStream(), '\r', flashSettings.hostName)
   {
     switchCommandSet(Authenticated);
     
@@ -967,7 +967,7 @@ public:
 private:
   void auth(const char* password)
   {
-    if (strcmp(flashDataSet.telnetPass, password) == 0) {
+    if (strcmp(flashSettings.telnetPass, password) == 0) {
       switchCommandSet(0);
       return;
     }
@@ -1015,7 +1015,7 @@ private:
 
     getStream()
       << WelcomeMessage("telnet")
-      << "Please enter password for \"" << flashDataSet.hostName << "\": ";
+      << "Please enter password for \"" << flashSettings.hostName << "\": ";
       ;
   }
   virtual void reset()

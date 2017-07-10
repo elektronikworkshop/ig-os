@@ -57,7 +57,6 @@ private:
 extern SystemMode systemMode;
 
 
-const unsigned int NumWaterCircuits = 4;
 
 extern WaterCircuit* circuits[NumWaterCircuits + 1];
 
@@ -131,7 +130,6 @@ private:
   Time& m_time;
 };
 
-const unsigned int NumSchedulerTimes = 8;
 
 extern SchedulerTime* schedulerTimes[NumSchedulerTimes + 1];
 

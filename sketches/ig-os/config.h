@@ -17,6 +17,8 @@ const unsigned int TelnetPort = 23;
 const unsigned int MaxTelnetClients = 1;
 const unsigned int SizeErrLogBuffer = 2048;
 
+const unsigned int NumWaterCircuits = 4;
+const unsigned int NumSchedulerTimes = 8;
 
 #define DefaultHostName "ew-intelliguss"
 
@@ -26,6 +28,7 @@ const unsigned int SizeErrLogBuffer = 2048;
   "Type \"help\" for available commands\n"
 
 
+/* global functions which look for a better home later in the development cycle ... */
 
 template<class T> inline Print &operator <<(Print &obj, T arg) { obj.print(arg); return obj; }
 
