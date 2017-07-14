@@ -199,6 +199,7 @@ private:
   unsigned int m_writeIndex;
 };
 
+/* we could back up the log buffers to flash, but that's probably overkill */
 
 extern LogProxy<MaxTelnetClients> Log;
 extern LogProxy<MaxTelnetClients> Debug;

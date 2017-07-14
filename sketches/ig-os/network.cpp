@@ -53,9 +53,9 @@ Network::run()
     case StateConnecting:
       if (WiFi.status() == WL_CONNECTED) {
         Serial
-          << "wifi connected to " << flashSettings.wifiSsid << "\n"
-          << "signal strength: " << WiFi.RSSI() << " dB\n"
-          << "IP:              " << WiFi.localIP() << "\n";
+          << "wifi connected to:   " << flashSettings.wifiSsid << "\n"
+          << "signal strength:     " << WiFi.RSSI() << " dB\n"
+          << "IP:                  " << WiFi.localIP() << "\n";
         m_state = StateConnected;
 
         startMdns();
@@ -85,7 +85,7 @@ Network::connect()
   }
 
   if (strlen(flashSettings.wifiSsid) == 0 or strlen(flashSettings.wifiPass) == 0) {
-    Serial << "wifi SSID (\"" << flashSettings.wifiSsid << "\") or password (\"" << flashSettings.wifiPass << "\") not set -- can not connect to network, please set up your SSID and password\n";
+    Serial << "wifi SSID (\"" << flashSettings.wifiSsid << "\") or password (\"" << flashSettings.wifiPass << "\") not set:\n  can not connect to network.\n  please set up your SSID and password\n";
 
     printVisibleNetworks();
     

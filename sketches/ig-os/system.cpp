@@ -81,6 +81,8 @@ public:
           setState(StatePrepare);
         }
         break;
+
+      /* TODO: we should make this part of the Adc class */
       case StateConvert:
           if (adc.isReady()) {
             

@@ -108,6 +108,25 @@ Adc::changeState(State newState)
   m_lastStateChangeMs = millis();
 }
 
+/*
+    https://github.com/esp8266/Arduino/issues/2070
+    
+    adc_value = adc.read(0)
+    ADC_SAMPLES_PER_READING = 10
+    EMA_ALPHA = 10
+    
+    function read_adc()
+        local lowest_sample, new_sample = adc.read(0)
+        for i = 1, ADC_SAMPLES_PER_READING do
+            new_sample = adc.read(0)
+            if new_sample < lowest_sample then lowest_sample = new_sample end
+        end
+        adc_value = (EMA_ALPHA * lowest_sample + (100 - EMA_ALPHA) * adc_value) / 100;
+    end
+    
+    tmr.alarm(2, 200, 1, function() read_adc() end)
+ */
+
 uint16_t
 Adc::read() const
 {

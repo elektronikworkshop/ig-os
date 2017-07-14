@@ -199,12 +199,14 @@ public:
   uint8_t getThreshWet()   const { return m_settings.m_threshWet; }
   uint8_t getSoakMinutes() const { return m_settings.m_soakMinutes; }
   uint8_t getThreshReservoir() const { return m_settings.m_threshReservoir; }
+  uint8_t getMaxIterations() const { return m_settings.m_maxIterations; }
 
   void setPumpSeconds(uint8_t s) { m_settings.m_pumpSeconds = s; }
   void setThreshDry(uint8_t t)   { m_settings.m_threshDry = t; }
   void setThreshWet(uint8_t t)   { m_settings.m_threshWet = t; }
   void setSoakMinutes(uint8_t m) { m_settings.m_soakMinutes = m; }
   void setThreshReservoir(uint8_t t) { m_settings.m_threshReservoir = t; }
+  void setMaxIterations(uint8_t i) const { m_settings.m_maxIterations = i; }
 
   uint8_t getHumidity()    const { return m_currentHumidity; }
   uint8_t getNumIterations() const { return m_iterations; }

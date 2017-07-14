@@ -7,7 +7,9 @@
 
 #include <climits>
 
-/* https://github.com/arduino-libraries/NTPClient
+/* For more info see:
+ *  
+ * https://github.com/arduino-libraries/NTPClient
  * https://github.com/arduino-libraries/NTPClient/blob/master/NTPClient.h
  */
 #include <NTPClient.h>

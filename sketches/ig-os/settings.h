@@ -40,28 +40,28 @@ struct FlashData
       230,  /* wet 0.8 * 255 (200) -- 0.9 * 255 (230)  */
         5,  /* soak minutes                            */
         0,  /* reservoir threshold                     */
-       10}, /* maximum iterations                      */
+       20}, /* maximum iterations                      */
      /* circuit 2 */
      {  0,  /* pump seconds                            */
       180,  /* dry 0.6 * 255 (150) -- 0.7 * 255 (180)  */
       230,  /* wet 0.8 * 255 (200) -- 0.9 * 255 (230)  */
         5,  /* soak minutes                            */
         0,  /* reservoir threshold                     */
-       10}, /* maximum iterations                      */
+       20}, /* maximum iterations                      */
      /* circuit 3 */
      {  0,  /* pump seconds                            */
       180,  /* dry 0.6 * 255 (150) -- 0.7 * 255 (180)  */
       230,  /* wet 0.8 * 255 (200) -- 0.9 * 255 (230)  */
         5,  /* soak minutes                            */
         0,  /* reservoir threshold                     */
-       10}, /* maximum iterations                      */
+       20}, /* maximum iterations                      */
      /* circuit 4 */
      {  0,  /* pump seconds                            */
       180,  /* dry 0.6 * 255 (150) -- 0.7 * 255 (180)  */
       230,  /* wet 0.8 * 255 (200) -- 0.9 * 255 (230)  */
         5,  /* soak minutes                            */
         0,  /* reservoir threshold                     */
-       10}, /* maximum iterations                      */
+       20}, /* maximum iterations                      */
     }
     
     , schedulerTimes

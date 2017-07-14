@@ -13,10 +13,101 @@
 
 OneWire oneWireBus(OneWirePin);
 
+const char* helpGeneral = 
+  "help\n"
+  "  print this help\n"
+  "time\n"
+  "  display current time\n"
+  "mode <off, auto, man>\n"
+  "  switch the intelligüss mode\n"
+  "hist [a] [b]\n"
+  "  print error history. with no arguments the first few entries are displayed\n"  // TODO: we should rather print the last few...
+  "    hist [a] prints the first [a] entries, [a] == -1 prints the whole history\n"
+  "    hist [a] [b] prints the history between entries [a] and [b]\n"
+  "      if [b] is -1 all entries from [a] up to the end are printed\n"
+;
+const char* helpCircuit = 
+  "c.trig [id]\n"
+  "  manually trigger watering cycle. if [id] is provided only\n"
+  "  circuit with [id] is triggered\n"
+  "c.read <id>\n"
+  "  read sensor of circuit with ID <id>\n"
+  "c.res <id>\n"
+  "  read reservoir of circuit with ID <id>\n"
+  "c.pump <id> <seconds>\n"
+  "  run pump of circuit with ID <id> for <seconds> seconds\n"
+  "c.info [id]\n"
+  "  display settings and state of circuit with ID [id]\n"
+  "  if no [id] is provided the info for all circuits is printed\n"
+  "c.set <id> <param>\n"
+  "  change settings and state of circuit with ID <id>\n"
+  "  <param> must be one of:\n"
+  "    pump <seconds>\n"
+  "      set pump time in seconds (0: watering circuit off)\n"
+  "    soak <minutes>\n"
+  "      set soak time in minutes\n"
+  "    dry <thresh>\n"
+  "      set dry threshold, range 0 .. 255\n"
+  "    wet <thresh>\n"
+  "      set wet threshold, range 0 .. 255\n"
+  "    res <thresh>\n"
+  "      set reservoir threshold, range 0 .. 255 (0: reservoir off)\n"
+  "    maxit <count>\n"
+  "      set maximum number of iterations, range 0 .. 255\n"
+  "c.stop <id>\n"
+  "  stop any watering/measuring activity on circuit <id> and return it to idle\n"
+;
 
+const char* helpLogger = 
+  "l.info [id]\n"
+  "  display logging configuration of circuit with ID [id]\n"
+  "  if no [id] is provided the configuration for for all circuits is printed\n"
+  "l.trig [id]\n"
+  "  trigger transmission of current data to remote logger.\n"
+  "  if no ID is provided, the data of all circuits is transmitted\n"
+  "l.set <id> <param>\n"
+  "  configure the logging backend for circuit with ID <id>\n"
+  "  <param> must be one of:\n"
+  "    interval <minutes>\n"
+  "      the logging interval in minutes\n"
+  "    chid <id>\n"
+  "      the ThingSpeak channel ID (integer number)\n"
+  "    key <key>\n"
+  "      the ThingSpeak channel write API key (character string)\n"
+;
+
+const char* helpScheduler = 
+  "s.info\n"
+  "  print scheduler configuration\n"
+  "s.set <index> <time>\n"
+  "  configure scheduler whereas\n"
+  "    <index> is the entry number between 1 and "  /*<< NumSchedulerTimes << */ "8\n"
+  "    <time> is the time formatted \"hh:mm\" or \"off\"\n"
+;
+
+const char* helpNetwork = 
+  "n.rssi\n"
+  "  display the current connected network strength (RSSI)\n"
+  "n.list\n"
+  "  list the visible networks\n"
+  "n.ssid [ssid]\n"
+  "  with argument: set wifi SSID\n"
+  "  without: show current wifi SSID\n"
+  "n.pass [password]\n"
+  "  with argument: set wifi password\n"
+  "  without: show current wifi password\n"
+  "n.host [hostname]\n"
+  "  shows the current host name when invoked without argument\n"
+  "  sets a new host name when called with argument\n"
+  "n.connect\n"
+  "  connect to configured wifi network\n"
+  "n.telnet [on/off]\n"
+  "  display or change state (\"on\" or \"off\") of the telnet server\n"
+;
+   
 class Cli
   : public StreamCmd< 2, /* _NumCommandSets    */
-                     32, /* _MaxCommands       */
+                     48, /* _MaxCommands       */
                      32, /* _CommandBufferSize */
                       8> /* _MaxCommandSize    */
 {
@@ -33,6 +124,12 @@ public:
     /* WARNING: Due to the static nature of StreamCmd any overflow of the command list will go unnoticed, since this object is initialized in global scope.
      */
     addCommand("help",      &Cli::cmdHelp);
+    addCommand(".",         &Cli::cmdHelp);
+    addCommand("c.",        &Cli::cmdHelp);
+    addCommand("l.",        &Cli::cmdHelp);
+    addCommand("s.",        &Cli::cmdHelp);
+    addCommand("n.",        &Cli::cmdHelp);
+    
     addCommand("time",      &Cli::cmdTime);
     addCommand("mode",      &Cli::cmdMode);
     addCommand("hist",      &Cli::cmdHist);
@@ -56,7 +153,9 @@ public:
     addCommand("n.rssi",    &Cli::cmdNetworkRssi);
     addCommand("n.list",    &Cli::cmdNetworkList);
     addCommand("n.ssid",    &Cli::cmdNetworkSsid);
+    addCommand("n.ssidr",    &Cli::cmdNetworkSsid); /* undocumented wifi SSID reset */
     addCommand("n.pass",    &Cli::cmdNetworkPass);
+    addCommand("n.passr",    &Cli::cmdNetworkPass); /* undocumented wifi pass reset */
     addCommand("n.connect", &Cli::cmdNetworkConnect);
     addCommand("n.host",    &Cli::cmdNetworkHostName);
     addCommand("n.telnet",  &Cli::cmdNetworkTelnet);
@@ -284,87 +383,33 @@ protected:
   
   virtual void cmdHelp()
   {
-    stream().print(F(
-      "----------------\n"
-      "help\n"
-      "  print this help\n"
-      "time\n"
-      "  display current time\n"
-      "mode <off, auto, man>\n"
-      "  switch the intelligüss mode\n"
-      "hist [a] [b]\n"
-      "  print error history. with no arguments the first few entries are displayed\n"  // TODO: we should rather print the last few...
-      "    hist [a] prints the first [a] entries, if [a] is -1 the whole history is printed\n"
-      "    hist [a] [b] prints the history between entries [a] and [b]\n"
-      "      if [b] is -1 all entries from [a] up to the end are printed\n"
-      "WATERING CIRCUITS:\n"
-      "c.trig [id]\n"
-      "  manually trigger watering cycle. if [id] is provided only\n"
-      "  circuit with [id] is triggered\n"
-      "c.read <id>\n"
-      "  read sensor of circuit with ID <id>\n"
-      "c.res <id>\n"
-      "  read reservoir of circuit with ID <id>\n"
-      "c.pump <id> <seconds>\n"
-      "  run pump of circuit with ID <id> for <seconds> seconds\n"
-      "c.info [id]\n"
-      "  display settings and state of circuit with ID [id]\n"
-      "  if no [id] is provided the info for all circuits is printed\n"
-      "c.set <id> <param>\n"
-      "  change settings and state of circuit with ID <id>\n"
-      "  <param> must be one of:\n"
-      "    pump <seconds>\n"
-      "      set pump time in seconds (0: watering circuit off)\n"
-      "    soak <minutes>\n"
-      "      set soak time in minutes\n"
-      "    dry <thresh>\n"
-      "      set dry threshold, range 0 .. 255\n"
-      "    wet <thresh>\n"
-      "      set wet threshold, range 0 .. 255\n"
-      "    res <thresh>\n"
-      "      set reservoir threshold, range 0 .. 255 (0: reservoir off)\n"
-      "c.stop <id>\n"
-      "  stop any watering/measuring activity on circuit <id> and return it to idle\n"
-      "LOGGER\n"
-      "l.info [id]\n"
-      "  display logging configuration of circuit with ID [id]\n"
-      "  if no [id] is provided the configuration for for all circuits is printed\n"
-      "l.trig [id]\n"
-      "  trigger transmission of current data to remote logger. if no ID is provided, the data of all circuits is transmitted\n"
-      "l.set <id> <param>\n"
-      "  configure the logging backend for circuit with ID <id>\n"
-      "  <param> must be one of:\n"
-      "    interval <minutes>\n"
-      "      the logging interval in minutes\n"
-      "    chid <id>\n"
-      "      the ThingSpeak channel ID (integer number)\n"
-      "    key <key>\n"
-      "      the ThingSpeak channel write API key (character string)\n"
-      "SCHEDULER\n"
-      "s.info\n"
-      "  print scheduler configuration\n"
-      "s.set <index> <time>\n"
-      "  configure scheduler whereas\n"
-      "    <index> is the entry number between 1 and "  /*<< NumSchedulerTimes << */ "8\n"
-      "    <time> is the time formatted \"hh:mm\" or \"off\"\n"
-      "NETWORK\n"
-      "n.rssi\n"
-      "  display the current connected network strength (RSSI)\n"
-      "n.list\n"
-      "  list the visible networks\n"
-      "n.ssid <ssid>\n"
-      "  set wifi SSID\n"
-      "n.pass <password>\n"
-      "  set wifi password\n"
-      "n.host [hostname]\n"
-      "  shows the current host name when invoked without argument\n"
-      "  sets a new host name when called with argument\n"
-      "n.connect\n"
-      "  connect to configured wifi network\n"
-      "n.telnet [on/off]\n"
-      "  display or change state (\"on\" or \"off\") of the telnet server\n"
-      "----------------\n"
-    ));
+    const char* arg = current();
+
+           if (strncmp(arg, ".", 1) == 0) {
+      stream() << helpGeneral;
+    } else if (strncmp(arg, "c.", 2) == 0) {
+      stream() << helpCircuit;
+    } else if (strncmp(arg, "l.", 2) == 0) {
+      stream() << helpLogger;
+    } else if (strncmp(arg, "s.", 2) == 0) {
+      stream() << helpScheduler;
+    } else if (strncmp(arg, "n.", 2) == 0) {
+      stream() << helpNetwork;
+    } else {
+      stream()
+        << "----------------\n"
+        << helpGeneral
+        << "WATERING CIRCUITS:\n"
+        << helpCircuit
+        << "LOGGER\n"
+        << helpLogger
+        << "SCHEDULER\n"
+        << helpScheduler
+        << "NETWORK\n"
+        << helpNetwork
+        << "----------------\n"
+        ;
+    }
   }
   
   void cmdTime()
@@ -619,6 +664,14 @@ protected:
       }
       w->setThreshReservoir(t);
       stream() << "reservoir threshold set to " << t << "\n";
+    } else if (strcmp(arg, "maxit") == 0) {
+      int i;
+      if (getInt(i, 0, 255) != ArgOk) {
+        stream() << "maximum iterations must be between 0 and 255\n";
+        return;
+      }
+      w->setMaxIterations(i);
+      stream() << "maximum iterations set to " << i << "\n";
     } else {
       stream() << "invalid parameter \"" << arg << "\"\n";
       return;
@@ -827,11 +880,15 @@ protected:
   
   void cmdNetworkSsid()
   {
-    const char* arg = next();
-  
-    if (not arg or not strlen(arg)) {
-      stream() << "SSID: " << flashSettings.wifiSsid << "\n";
-      return;
+    const char* arg;
+    if (strcmp(current(), "n.ssidr") == 0) {
+      arg = "";
+    } else {
+      arg = next();
+      if (not arg) {
+        stream() << "SSID: " << flashSettings.wifiSsid << "\n";
+        return;
+      }
     }
     strncpy(flashSettings.wifiSsid, arg, MaxWifiSsidLen);
     flashSettings.update();
@@ -841,12 +898,16 @@ protected:
   
   void cmdNetworkPass()
   {
-    const char* arg = next();
-  
-    if (arg == NULL or strlen(arg) == 0) {
-      /* this is perhaps not a good idea, but can come in handy for now */
-      stream() << "wifi password: " << flashSettings.wifiPass << "\n";
-      return;
+    const char* arg;
+    if (strcmp(current(), "n.passr") == 0) {
+      arg = "";
+    } else {
+      arg = next();
+      if (not arg) {
+        /* this is perhaps not a good idea, but can come in handy for now */
+        stream() << "wifi password: " << flashSettings.wifiPass << "\n";
+        return;
+      }
     }
     strncpy(flashSettings.wifiPass, arg, MaxWifiPassLen);
     flashSettings.update();

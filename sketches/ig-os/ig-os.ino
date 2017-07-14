@@ -3,9 +3,15 @@
  * Github:
  *   ESPAsyncTCP         https://github.com/me-no-dev/ESPAsyncTCP
  *   ESPAsyncWebServer   https://github.com/me-no-dev/ESPAsyncWebServer
-
+ *   FlashSettings
+ *   StreamCmd
+ *   TelnetServer
+ *
  * Library manager:
  *   OneWire
+ *   NTP Client
+ *   ThingSpeak
+ *
  *   DS1307RTC (optional for I2C real time clock)
  * 
  * 
@@ -15,8 +21,8 @@
  * https://diyprojects.io/esp8266-web-server-part-5-add-google-charts-gauges-and-charts/#Add_Google_Charts_to_a_Web_Interface_ESP8266
  * https://github.com/esp8266/Arduino/tree/master/libraries/ESP8266mDNS
  * 
- * // nice flash management, configuration AP
- * https://github.com/CuriousTech/ESP8266-HVAC/blob/master/Arduino/eeMem.h
+ * https://github.com/tzapu/WiFiManager
+ * https://github.com/soramimi/ESP8266Tweet
  *  
  * http://www.makeuseof.com/tag/how-and-why-to-add-a-real-time-clock-to-arduino/
  *  
@@ -27,6 +33,8 @@
  * consider for later incorporation:
  * https://github.com/CuriousTech/ESP8266-HVAC/blob/master/Arduino/WiFiManager.h
  * 
+ * 
+ * https://help.github.com/articles/splitting-a-subfolder-out-into-a-new-repository/
  */
 
 #include "cli.h"
@@ -47,6 +55,7 @@ void setup()
   Serial.begin(115200);
   Serial.println("");
   Serial << "build: " << __DATE__ << " " << __TIME__ << "\n";
+  Debug << "number of registered commands: " << uartCli.getNumCommandsRegistered(0) << "\n";
 
   Wire.begin();
 
@@ -67,7 +76,7 @@ void setup()
 
   pinMode(LED_BUILTIN, OUTPUT);
 
-  Debug << "number of registered commands: " << uartCli.getNumCommandsRegistered(0) << "\n";
+  Serial << WelcomeMessage("serial");
 }
 
 
