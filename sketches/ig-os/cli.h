@@ -36,6 +36,8 @@ const char* helpCircuit =
   "  read reservoir of circuit with ID <id>\n"
   "c.pump <id> <seconds>\n"
   "  run pump of circuit with ID <id> for <seconds> seconds\n"
+  "c.valve <id> <open|close>\n"
+  "  open or close the valve with ID <id>\n"
   "c.info [id]\n"
   "  display settings and state of circuit with ID [id]\n"
   "  if no [id] is provided the info for all circuits is printed\n"
