@@ -137,11 +137,7 @@ void loop()
     }
   }
 
-  unsigned long t = millis();
-  if (t & 0x0000200UL) {
-    static unsigned int led = LOW;
-    led = led == HIGH ? LOW : HIGH;
-    digitalWrite(LED_BUILTIN, led);
-  }  
+  /* poor man's second blink */
+  digitalWrite(LED_BUILTIN, millis() & 0x0000200UL ? HIGH : LOW);
 }
 
