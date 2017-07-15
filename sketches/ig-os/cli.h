@@ -108,7 +108,7 @@ const char* helpNetwork =
 class Cli
   : public StreamCmd< 2, /* _NumCommandSets    */
                      48, /* _MaxCommands       */
-                     32, /* _CommandBufferSize */
+                     128, /* _CommandBufferSize */
                       8> /* _MaxCommandSize    */
 {
 private:
