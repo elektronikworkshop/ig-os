@@ -210,7 +210,7 @@ WaterCircuit::prt(Print& p) const
     <<  "           wet thresh  "; prtFmt(p, "%3u\n",  m_settings.m_threshWet)
     <<  "            soak time  "; prtFmt(p, "%3u m\n", m_settings.m_soakMinutes)
     <<  "     reservoir thresh  "; (m_settings.m_threshReservoir == 0 ? p << "off\n" : prtFmt(p, "%3u\n", m_settings.m_threshReservoir))
-    <<  "   maximum iterations  "; prtFmt(p, "%3u m\n", m_settings.m_maxIterations)
+    <<  "   maximum iterations  "; prtFmt(p, "%3u\n", m_settings.m_maxIterations)
     <<  "----------------------------\n"
     <<  "   last read humidity  " << m_currentHumidity << "\n"
     <<  "accumulated pump time  " << m_pump.getTotalEnabledSeconds() << " s\n"
