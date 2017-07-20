@@ -74,7 +74,7 @@ void setup()
 
   loggerBegin();
 
-  pinMode(LED_BUILTIN, OUTPUT);
+//  pinMode(LED_BUILTIN, OUTPUT);
 
   Serial << WelcomeMessage("serial");
 }
@@ -138,6 +138,6 @@ void loop()
   }
 
   /* poor man's second blink */
-  digitalWrite(LED_BUILTIN, millis() & 0x0000200UL ? HIGH : LOW);
+//  digitalWrite(LED_BUILTIN, millis() & 0x0000200UL ? HIGH : LOW);
 }
 
