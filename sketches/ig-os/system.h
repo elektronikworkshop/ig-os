@@ -16,7 +16,11 @@
 
 extern NTPClient timeClient;
 
-
+/**
+ * TODO:
+ *  * When switching from Auto to Manual: make sure that any watering process is terminated
+ *  * Remove "Off" mode since it isn't used
+ */
 class SystemMode
 {
 public:
