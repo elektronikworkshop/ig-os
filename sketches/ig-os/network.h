@@ -15,6 +15,9 @@
 class Network
 {
 public:
+  /* If connection is lost, try to reconnect every minute */
+  static const unsigned long ConnectRetryMs = 60UL * 1000UL;
+  
   typedef enum
   {
     StateDisconnected,

@@ -127,7 +127,7 @@ public:
 
   static const unsigned int msPowerUp   =  2000;
   static const unsigned int msAdcSetup  =  1000;
-  static const unsigned int msPowerDown = 10000;
+  static const unsigned int msPowerDown =  2000;
 
   Adc()
     : m_state(StateIdle)

@@ -25,6 +25,12 @@ const char* helpGeneral =
   "    hist [a] prints the first [a] entries, [a] == -1 prints the whole history\n"
   "    hist [a] [b] prints the history between entries [a] and [b]\n"
   "      if [b] is -1 all entries from [a] up to the end are printed\n"
+  "debug [on|off]\n"
+  "  no argument: show if debug logging is enabled\n"
+  "     on  enable debug logging\n"
+  "    off  disable debug logging\n"
+  "version\n"
+  "  print IG-OS version\n"
 ;
 const char* helpCircuit = 
   "c.trig [id]\n"
@@ -103,8 +109,15 @@ const char* helpNetwork =
   "  sets a new host name when called with argument\n"
   "n.connect\n"
   "  connect to configured wifi network\n"
-  "n.telnet [on/off]\n"
-  "  display or change state (\"on\" or \"off\") of the telnet server\n"
+  "n.telnet [params]\n"
+  "  without [params] this prints the telnet configuration\n"
+  "  with [params] the telnet server can be configured as follows\n"
+  "    on\n"
+  "      enables the telnet server\n"
+  "    off\n"
+  "      disables the telnet server\n"
+  "    pass <pass>\n"
+  "      sets the telnet login password to <password>\n"
 ;
    
 class Cli
@@ -135,6 +148,8 @@ public:
     addCommand("time",      &Cli::cmdTime);
     addCommand("mode",      &Cli::cmdMode);
     addCommand("hist",      &Cli::cmdHist);
+    addCommand("debug",     &Cli::cmdDebug);
+    addCommand("version",   &Cli::cmdVersion);
     
     addCommand("c.trig",    &Cli::cmdCircuitTrigger);
     addCommand("c.read",    &Cli::cmdCircuitRead);
@@ -416,7 +431,7 @@ protected:
   
   void cmdTime()
   {
-    stream() << "current time: " << timeClient.getFormattedTime() << "\n";
+    stream() << "current time: " << systemTime.getTimeStr() << "\n";
   }
   
   void cmdMode()
@@ -450,6 +465,49 @@ protected:
 
     history::prt(stream(), start, end);
   }
+
+  void cmdDebug()
+  {
+    enum {OFF = 0, ON};
+    size_t idx(0);
+    switch (getOpt(idx, "off", "on")) {
+      case ArgOk:
+        switch (idx) {
+          case ON:
+            if (flashSettings.debug) {
+              stream() << "debug logging already enabled\n";
+              return;
+            }
+            stream() << "enabling debug logging\n";
+            flashSettings.debug = true;
+            break;
+          case OFF:
+            if (not flashSettings.debug) {
+              stream() << "debug logging already disabled\n";
+              return;
+            }
+            stream() << "disabling debug logging\n";
+            flashSettings.debug = false;
+            break;
+        }
+        break;
+      case ArgNone:
+        stream() << "debug logging " << (flashSettings.debug ? "en" : "dis") << "abled\n";
+        return;
+      default:
+        stream() << "invalid arguments\n";
+        return;
+    }
+    
+    Debug.enable(flashSettings.debug);
+    flashSettings.update();
+  }
+
+  void cmdVersion()
+  {
+    PrintVersion(stream());
+  }
+  
   void cmdCircuitTrigger()
   {
     m_cliTrigger = true;
@@ -534,14 +592,14 @@ protected:
       return;
     }
   
-    stream() << "pump enabled " << timeClient.getFormattedTime() << "\n";
+    stream() << "pump enabled " << systemTime.getTimeStr() << "\n";
   
     auto& p = w->getPump();
     p.enable();
     delay(s * 1000);
     p.disable();
   
-    stream() << "pump disabled " << timeClient.getFormattedTime() << "\n";
+    stream() << "pump disabled " << systemTime.getTimeStr() << "\n";
   }
   
   void cmdCircuitValve()
@@ -581,10 +639,10 @@ protected:
     auto& v = w->getValve();
     if (open) {
       v.open();
-      stream() << "valve " << id << " opened " << timeClient.getFormattedTime() << "\n";
+      stream() << "valve " << id << " opened " << systemTime.getTimeStr() << "\n";
     } else {
       v.close();
-      stream() << "valve " << id << " closed " << timeClient.getFormattedTime() << "\n";
+      stream() << "valve " << id << " closed " << systemTime.getTimeStr() << "\n";
     }
   }
   
@@ -953,8 +1011,8 @@ protected:
   void cmdNetworkTelnet()
   {
     size_t idx(0);
-    enum {ON = 0, OFF};
-    switch (getOpt(idx, "on", "off")) {
+    enum {ON = 0, OFF, PASS};
+    switch (getOpt(idx, "on", "off", "pass")) {
       case ArgOk:
         switch (idx) {
           case ON:
@@ -977,13 +1035,23 @@ protected:
               return;
             }
             break;
+          case PASS:
+          {
+            const char* pass = next();
+            if (not pass or strlen(pass) == 0) {
+              stream() << "password must have at least a length of " << MinTelnetPassLen << "\n";
+              return;
+            }
+            strncpy(flashSettings.telnetPass, pass, MaxTelnetPassLen);
+            break;
+          }
         }
         break;
       case ArgNone:
-        stream() << "the telnet server is " << (flashSettings.telnetEnabled ? "enabled\n" : "disabled\n");
+        stream() << "the telnet server is " << (flashSettings.telnetEnabled ? "on" : "off") << ", the login password is \"" << flashSettings.telnetPass << "\"\n"; 
         return;
       default:
-        stream() << "invalid argument \"" << current() << "\". use \"on\" or \"off\"\n";
+        stream() << "invalid argument \"" << current() << "\", see \"help\" for proper use\n";
         return;
     }
 

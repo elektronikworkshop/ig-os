@@ -48,8 +48,13 @@ Network::run()
   // TODO: if connection lost try to reconnect every now and then
   
   switch (m_state) {
+    
     case StateDisconnected:
+      if (millis() - m_connectStartMs > ConnectRetryMs) {
+        connect();
+      }
       break;
+      
     case StateConnecting:
       if (WiFi.status() == WL_CONNECTED) {
         Serial
@@ -67,6 +72,7 @@ Network::run()
         Serial << "wifi failed to connect to SSID \"" << flashSettings.wifiSsid << "\" -- timeout\n";
       }
       break;
+    
     case StateConnected:
       if (WiFi.status() != WL_CONNECTED) {
         Serial << "wifi connection lost\n";

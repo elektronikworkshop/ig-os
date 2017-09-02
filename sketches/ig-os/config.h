@@ -3,6 +3,10 @@
 
 #include <Arduino.h>
 
+const unsigned int VersionMajor = 1;
+const unsigned int VersionMinor = 0;
+const unsigned int VersionRevision = 0;
+
 const unsigned int SpiSckPin   = D5;
 const unsigned int SpiMosiPin  = D7;
 const unsigned int SpiLatchPin = D8;
@@ -27,6 +31,7 @@ const unsigned int NumSchedulerTimes = 8;
   "Copyright (c) 2017 Elektronik Workshop\n"          \
   "Type \"help\" for available commands\n"
 
+#define PrintVersion(stream) prtFmt(stream, "%02u:%02u:%02u", VersionMajor, VersionMinor, VersionRevision) << " -- " << __DATE__ << " " << __TIME__ << "\n"
 
 /* global functions which look for a better home later in the development cycle ... */
 

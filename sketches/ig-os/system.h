@@ -13,8 +13,39 @@
  * https://github.com/arduino-libraries/NTPClient/blob/master/NTPClient.h
  */
 #include <NTPClient.h>
+#include <WiFiUdp.h>
 
-extern NTPClient timeClient;
+
+class SystemTime
+{
+public:
+  typedef enum
+  {
+    ModeNtp,
+    ModeRtc,
+  } Mode;
+  
+  SystemTime();
+  void begin();
+  void run();
+
+  uint8_t getDay();
+  uint8_t getHours();
+  uint8_t getMinutes();
+  uint8_t getSeconds();
+
+  unsigned long getEpoch();
+
+  String getTimeStr();
+private:
+  NTPClient m_ntpClient;
+  WiFiUDP m_ntpUDP;
+
+  Mode m_mode;
+};
+
+extern SystemTime systemTime;
+
 
 /**
  * TODO:
@@ -106,25 +137,25 @@ public:
     }
     
     /* Check if we processed it already today */
-    if (m_dayDone == timeClient.getDay()) {
+    if (m_dayDone == systemTime.getDay()) {
       return false;
     }
 
     bool due =
-      timeClient.getDay()     != m_dayDone        and
-      timeClient.getHours()   == m_time.m_hour    and
-      timeClient.getMinutes() == m_time.m_minute;
+      systemTime.getDay()     != m_dayDone        and
+      systemTime.getHours()   == m_time.m_hour    and
+      systemTime.getMinutes() == m_time.m_minute;
     
     if (due) {
-      m_dayDone = timeClient.getDay();
-      Serial << "detected watering due at " << timeClient.getFormattedTime() << "\n";
+      m_dayDone = systemTime.getDay();
+      Serial << "detected watering due at " << systemTime.getTimeStr() << "\n";
     }
     
     return due;
   }
   void markDone()
   {
-    m_dayDone = timeClient.getDay();
+    m_dayDone = systemTime.getDay();
   }
   bool isValid() const
   {

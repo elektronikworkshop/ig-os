@@ -2,15 +2,119 @@
 #include "spi.h"
 #include "settings.h"
 
-#include <WiFiUdp.h>
 
-WiFiUDP ntpUDP;
+SystemTime::SystemTime()
+  : m_ntpClient(m_ntpUDP,
+                "europe.pool.ntp.org",
+                2 * 60 * 60, /* offset seconds (zurich) */
+                60000)       /* update interval millis  */
+  , m_mode(ModeNtp)
+{ }
 
-NTPClient timeClient(ntpUDP,
-                     "europe.pool.ntp.org",
-                     2 * 60 * 60, /* offset seconds (zurich) */
-                     60000        /* update interval millis  */
-                     );
+void
+SystemTime::begin()
+{
+  switch (m_mode) {
+    case ModeNtp:
+      m_ntpClient.begin();
+      break;
+    case ModeRtc:
+      break;
+  }
+}
+
+void
+SystemTime::run()
+{
+  switch (m_mode) {
+    case ModeNtp:
+      m_ntpClient.update();
+      break;
+    case ModeRtc:
+      break;
+  }
+}
+
+uint8_t
+SystemTime::getDay()
+{
+  switch (m_mode) {
+    case ModeNtp:
+      return m_ntpClient.getDay();
+      break;
+    case ModeRtc:
+      break;
+  }
+  return 0;
+}
+
+uint8_t
+SystemTime::getHours()
+{
+  switch (m_mode) {
+    case ModeNtp:
+      return m_ntpClient.getHours();
+      break;
+    case ModeRtc:
+      break;
+  }
+  return 0;
+}
+
+uint8_t
+SystemTime::getMinutes()
+{
+  switch (m_mode) {
+    case ModeNtp:
+      return m_ntpClient.getMinutes();
+      break;
+    case ModeRtc:
+      break;
+  }
+  return 0;
+}
+
+uint8_t
+SystemTime::getSeconds()
+{
+  switch (m_mode) {
+    case ModeNtp:
+      return m_ntpClient.getSeconds();
+      break;
+    case ModeRtc:
+      break;
+  }
+  return 0;
+}
+
+unsigned long
+SystemTime::getEpoch()
+{
+  switch (m_mode) {
+    case ModeNtp:
+      return m_ntpClient.getEpochTime();
+      break;
+    case ModeRtc:
+      break;
+  }
+  return 0;
+}
+
+String
+SystemTime::getTimeStr()
+{
+  switch (m_mode) {
+    case ModeNtp:
+      return m_ntpClient.getFormattedTime();
+      break;
+    case ModeRtc:
+      break;
+  }
+  return "<invalid system time mode>";
+}
+
+SystemTime systemTime;
+
 
 SystemMode systemMode;
 
@@ -20,7 +124,7 @@ class OnboardSensor:
 public:
   
   static const unsigned int NumMeasurements = 8;
-  static const unsigned int MeasurementIntervalMs = 1000UL;
+  static const unsigned int MeasurementIntervalMs = 100;
   
   OnboardSensor(Adc::Channel channel)
     : m_adcChannel(channel)

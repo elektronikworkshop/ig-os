@@ -54,7 +54,10 @@ void setup()
 {
   Serial.begin(115200);
   Serial.println("");
-  Serial << "build: " << __DATE__ << " " << __TIME__ << "\n";
+  PrintVersion(Serial);
+
+  Debug.enable(flashSettings.debug);
+
   Debug << "number of registered commands: " << uartCli.getNumCommandsRegistered(0) << "\n";
 
   Wire.begin();
@@ -62,7 +65,7 @@ void setup()
   flashSettings.begin();
   
   network.begin();
-  timeClient.begin();
+  systemTime.begin();
 //  webserver.begin();
 
   spi.begin();
@@ -87,7 +90,7 @@ void loop()
   network.run();
   telnetServer.run();
 
-  timeClient.update();
+  systemTime.run();
 //  webserver.run();
   spi.run();
   adc.run();
@@ -104,12 +107,12 @@ void loop()
       bool trigger = false;
       if (wateringDue()) {
         trigger = true;
-        Log << "watering triggered by scheduler at " << timeClient.getFormattedTime() << "\n";
+        Log << "watering triggered by scheduler at " << systemTime.getTimeStr() << "\n";
       }
       
       if (uartCli.isWateringTriggered()) {
         trigger = true;
-        Log << "watering triggered by CLI at " << timeClient.getFormattedTime() << "\n";
+        Log << "watering triggered by CLI at " << systemTime.getTimeStr() << "\n";
       }
 
       /* Add trigger from telnet clients */
@@ -119,7 +122,7 @@ void loop()
       }
       if (tnt) {
         trigger = true;
-        Log << "watering triggered by telnet CLI at " << timeClient.getFormattedTime() << "\n";
+        Log << "watering triggered by telnet CLI at " << systemTime.getTimeStr() << "\n";
       }
       
       for (WaterCircuit** c = circuits; *c; c++) {

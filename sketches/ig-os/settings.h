@@ -10,6 +10,8 @@
 const unsigned int MaxWifiSsidLen = 63; // excluding zero termination
 const unsigned int MaxWifiPassLen = 63; // excluding zero termination
 const unsigned int MaxHostNameLen = 63; // excluding zero termination
+const unsigned int MaxTelnetPassLen = 63; // excluding zero termination
+const unsigned int MinTelnetPassLen =  5;
 
 struct FlashData
   : public FlashDataBase
@@ -23,8 +25,10 @@ struct FlashData
 
   char hostName[MaxHostNameLen + 1];
   bool telnetEnabled;
-  char telnetPass[MaxWifiPassLen + 1];
+  char telnetPass[MaxTelnetPassLen + 1];
 
+  bool debug;
+  
   FlashData()
     /* router SSID */
     : wifiSsid{""}
@@ -86,6 +90,8 @@ struct FlashData
     , hostName{DefaultHostName}
     , telnetEnabled(true)
     , telnetPass{"h4ckm3"}
+
+    , debug(false)
   { }
 };
 
