@@ -945,6 +945,13 @@ protected:
       arg = "";
     } else {
       arg = next();
+
+      /* revert all strtok effects to get the plain password with spaces etc.
+       * "arg" now points to the start of the password and the password contains
+       * all spaces.
+       */
+      reset();
+
       if (not arg) {
         stream() << "SSID: " << flashSettings.wifiSsid << "\n";
         return;
@@ -963,6 +970,13 @@ protected:
       arg = "";
     } else {
       arg = next();
+
+      /* revert all strtok effects to get the plain password with spaces etc.
+       * "arg" now points to the start of the password and the password contains
+       * all spaces.
+       */
+      reset();
+
       if (not arg) {
         /* this is perhaps not a good idea, but can come in handy for now */
         stream() << "wifi password: " << flashSettings.wifiPass << "\n";
