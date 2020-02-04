@@ -56,13 +56,14 @@ void setup()
   Serial.println("");
   PrintVersion(Serial);
 
+  flashSettings.begin();
+  
   Debug.enable(flashSettings.debug);
 
   Debug << "number of registered commands: " << uartCli.getNumCommandsRegistered(0) << "\n";
 
   Wire.begin();
 
-  flashSettings.begin();
   
   network.begin();
   systemTime.begin();

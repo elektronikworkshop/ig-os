@@ -763,7 +763,7 @@ protected:
       return;
     }
   
-    Logger* l = loggers[id];
+    Logger* l = loggers[id - 1];
     l->trigger();
   }
   
